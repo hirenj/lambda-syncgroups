@@ -1,0 +1,11 @@
+{
+  "name": "lambda-syncgroups",
+  "version": "0.0.1",
+  "description": "Lambda for syncing groups from Google Apps servers",
+  "main": "index.js",
+  "scripts": {
+    "test": "grunt test"
+  },
+  "author": "",
+  "license": ""
+}
