@@ -16,7 +16,7 @@ module.exports = function(grunt) {
 				package: 'syncGappsGroups',
 				options: {
 					file_name: 'index.js',
-					handler: 'handler',
+					handler: 'syncGappsGroups',
 					event: 'event.json',
 				},
 			}
@@ -26,9 +26,9 @@ module.exports = function(grunt) {
 				package: 'syncGappsGroups',
 				options: {
 					file_name: 'index.js',
-					handler: 'handler',
+					handler: 'syncGappsGroups',
 				},
-				arn: 'arn:aws:lambda:us-east-1:' + grunt.option('account-id') + ':function:jwtAuthorize',
+				arn: 'arn:aws:lambda:us-east-1:' + grunt.option('account-id') + ':function:syncGappsGroups',
 			},
 		},
 		lambda_package: {
