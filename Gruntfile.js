@@ -44,6 +44,23 @@ module.exports = function(grunt) {
 
 	});
 
+	grunt.registerTask('encrypt-secrets-local','Encrypt secrets',function() {
+		var kmish = require('./lib/kmish');
+		var fs = require('fs');
+		kmish.encrypt({ 'PlainText' : fs.readFileSync('creds.json','utf8') },function(err,encrypted) {
+			fs.writeFileSync('creds.kmish.json.encrypted',JSON.stringify( { 'store' : 'kmish', 'CiphertextBlob' : encrypted } ));
+		});
+	});
+
+	grunt.registerTask('encrypt-secrets-aws','Encrypt secrets',function(keyId) {
+		var AWS = require('aws-sdk');
+		var kms = new AWS.KMS({region:'eu-west-1'});
+		var fs = require('fs');
+		kms.encrypt({ 'PlainText' : fs.readFileSync('creds.json','utf8'), 'KeyId' : keyId },function(err,encrypted) {
+			fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'CiphertextBlob' : encrypted } ));
+		});
+	});
+
 	grunt.registerTask('deploy', ['env:prod', 'lambda_package', 'lambda_deploy']);
 	grunt.registerTask('test', ['lambda_invoke']);
 };
