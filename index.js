@@ -1,56 +1,10 @@
-var jwt = require('jsonwebtoken');
-var fs = require('fs');
 var https = require('https');
 var querystring = require('querystring');
+require('es6-promise').polyfill();
+
 
 var Queue = require('./queue');
 var google = require('./google');
-
-require('es6-promise').polyfill();
-
-var getEncryptedSecret = function getEncryptedSecret() {
-  var fs = require('fs');
-  var AWS = require('aws-sdk');
-  var kms = new AWS.KMS({region:'us-east-1'});
-
-  var secretPath = './creds.kms.json.encrypted';
-  var encryptedSecret = fs.readFileSync(secretPath);
-
-  var encryptedSecret = JSON.parse(fs.readFileSync(secretPath));
-
-  if ( ! encryptedSecret.store == 'kms') {
-    throw new Error("Not a kms encrypted secret");
-  }
-
-  delete kms.store;
-
-  return new Promise(function(resolve,reject) {
-    kms.decrypt(encryptedSecret, function(err, data) {
-      if (err) {
-        console.log(err, err.stack);
-        reject(err);
-      } else {
-        var decryptedSecret = data['Plaintext'].toString();
-        resolve(decryptedSecret);
-      }
-    });
-  });
-};
-
-var readLocalSecret = function readLocalSecret(callback) {
-  var encryptedSecret = JSON.parse(fs.readFileSync('./creds.kmish.json.encrypted'));
-  if ( ! encryptedSecret.store == 'kmish') {
-    throw new Error("Not a kmish encrypted secret");
-  }
-  var kmish = require('./lib/kmish');
-  return new Promise(function(resolve,reject) {
-    kmish.decrypt(encryptedSecret,function(err,data) {
-        var decryptedSecret = data['Plaintext'].toString();
-        resolve(decryptedSecret);
-    });
-  });
-  return Promise.resolve(datas.private_key);
-};
 
 exports.downloadEverything = function downloadEverything() {
   var queue = new Queue('DownloadQueue');
@@ -108,37 +62,14 @@ exports.downloadFile = function downloadFile() {
 
 exports.syncGappsGroups = function syncGappsGroups(event,context) {
   if (context.awsRequestId == 'LAMBDA_INVOKE') {
-    getEncryptedSecret = readLocalSecret;
+    require('./secrets').use_kms = false;
   }
-  var scopes = ["https://www.googleapis.com/auth/admin.directory.group.readonly","https://www.googleapis.com/auth/admin.directory.group.member.readonly"];
-
-  obtainAuthToken(scopes.join(' ')).then(function(token) {
-    var user = token.delegate;
-    performGet("www.googleapis.com","/admin/directory/v1/groups",{ 'access_token' : token.access_token, 'userKey' : user }).then(function(data) {
-        var data = JSON.parse(data);
-        return (data.groups || []).map(function(group) {
-          return group.email;
-        });
-    }).then(function(groups) {
-      var results = [];
-      var promises = groups.map(function(groupKey) {
-        return performGet("www.googleapis.com","/admin/directory/v1/groups/"+groupKey+"/members",{ 'access_token' : token.access_token }).then(function(data) {
-          var response = JSON.parse(data);
-          var members_array = (response.members || []).map(function(member) {
-            return { 'id' : member.id, 'email' : member.email };
-          });
-          return { 'group' : groupKey, 'members' : members_array };
-        });
-      });
-      return Promise.all(promises);
-    }).then(function(group_datas) {
-      console.log(JSON.stringify(group_datas));
-      return group_datas;
-    }).catch(function(err) {
-      console.error(err);
-      console.error(err.stack);
-    });
-
-    // Write the json of group membership out to S3
+  google.getGroups().then(function(group_datas) {
+    console.log(JSON.stringify(group_datas));
+    return group_datas;
+  }).catch(function(err) {
+    console.error(err);
+    console.error(err.stack);
   });
+
 };

@@ -3,11 +3,6 @@ var google = require('googleapis');
 var get_service_auth = function get_service_auth(secret,scopes) {
   return new Promise(function(resolve) {
     secret = JSON.parse(secret);
-    var cert = secret.private_key;
-    payload.iss = secret.client_email;
-    if (secret.delegate) {
-      payload.sub = secret.delegate;
-    }
     var authClient = new google.auth.JWT(secret.client_email,null,secret.private_key,scopes,secret.delegate);
     authClient.authorize(function(err,tokens) {
       if (err) {
@@ -49,17 +44,31 @@ var google_get_group_membership = function(auth,group) {
 };
 
 var getGroups = function getGroups() {
-  return getServiceAuth().then(function(auth) {
+  var scopes = ["https://www.googleapis.com/auth/admin.directory.group.readonly","https://www.googleapis.com/auth/admin.directory.group.member.readonly"];
+  return getServiceAuth(scopes).then(function(auth) {
     return google_get_user_groups(auth,auth.delegate);
   }).then(function(groups) {
-    return Promise.all(groups.map(function(group) {
-      return google_get_group_membership(auth,group).then(function(members) {
-        return {'group' : group, 'members' : members };
-      });
-    }));
+    return getServiceAuth(scopes).then(function(auth) {
+      return Promise.all(groups.map(function(group) {
+        return google_get_group_membership(auth,group).then(function(members) {
+          return {'group' : group, 'members' : members };
+        });
+      }));
+    });
   });
 };
 
+var auth_promise;
+
+var getServiceAuth = function getServiceAuth(scopes) {
+  if (auth_promise) {
+    return auth_promise;
+  }
+  auth_promise = require('./secrets').getSecret().then(function(secret) {
+    return get_service_auth(secret,scopes);
+  });
+  return auth_promise;
+};
 
 exports.getServiceAuth = getServiceAuth;
 exports.getGroups = getGroups;
