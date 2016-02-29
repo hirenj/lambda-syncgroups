@@ -3,6 +3,8 @@ var fs = require('fs');
 var https = require('https');
 var querystring = require('querystring');
 
+var Queue = require('./queue');
+
 require('es6-promise').polyfill();
 
 var getEncryptedSecret = function getEncryptedSecret() {
@@ -159,29 +161,8 @@ var performPost = function performPost(host,path,data,method) {
 // promise sqs.unshift()
 
 exports.downloadEverything = function downloadEverything() {
-  var AWS = require('aws-sdk');
-  var sqs = new AWS.SQS({region:'us-east-1'});
-
-  var got_queue = function(err,result) {
-    var url = result.QueueUrl;
-    sqs.sendMessage({'QueueUrl' : url , 'MessageBody' : "This is a message" },function(err,done) {
-      console.log(err);
-      console.log(done);
-    });
-  };
-  sqs.getQueueUrl({'QueueName' : 'DownloadQueue'},function(err,result) {
-    if (err) {
-      sqs.createQueue({ 'QueueName' : 'DownloadQueue', 'Attributes' : { 'VisibilityTimeout' : '300' } },function(err,result) {
-        if (err) {
-          console.error(err);
-        }
-        got_queue(err,result);
-      });
-    } else {
-      got_queue(null,result);
-    }
-  });
-
+  var queue = new Queue('DownloadQueue');
+  queue.sendMessage({"foo" : "bar"})
   // Push all the shared files into the queue
 }
 
@@ -196,27 +177,20 @@ exports.updateQueueTokens = function blah() {
 // Every minute
 
 exports.downloadFiles = function downloadFiles() {
-  var AWS = require('aws-sdk');
-  var sqs = new AWS.SQS({'region' : 'us-east-1'});
-  var got_queue = function(err,result) {
-    var url = result.QueueUrl;
-    // ApproximateNumberOfMessagesNotVisible - good proxy for active downloads ?
-    sqs.getQueueAttributes({'QueueUrl' : url, 'AttributeNames' : ['ApproximateNumberOfMessagesNotVisible'] },function(err,data) {
-      console.log(err);
-      console.log(parseInt(data.Attributes['ApproximateNumberOfMessagesNotVisible']));
-    });
-    sqs.receiveMessage({'QueueUrl' : url , 'MaxNumberOfMessages': 5 },function(err,data) {
-      console.log(data);
-      (data.Messages || []).forEach(function(message) {
-        sqs.deleteMessage({'QueueUrl' : url, 'ReceiptHandle' : message.ReceiptHandle },function() {
-          console.log("Deleted");
-        });
-      });
-    });
-  };
+  var queue = new Queue('DownloadQueue');
+  var active = queue.getActiveMessages().then(function(active) {
+    var diff = 5 - active;
+    if (diff < 0) {
+      return 0;
+    } else {
+      return diff;
+    }
+  });
 
-  sqs.getQueueUrl({'QueueName' : 'DownloadQueue'},function(err,result) {
-    got_queue(err,result);
+  active.then(function(count) {
+    return queue.shift(count);
+  }).then(function(messages) {
+    return Promise.all(messages.map(function(message) { return message.finalise(); }));
   });
 
   // Pop the first file in the queue
