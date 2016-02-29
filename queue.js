@@ -5,7 +5,7 @@ require('es6-promise').polyfill();
 
 var sqs_get_queue = function(queue) {
   return new Promise(function(resolve,reject) {
-    sqs.getQueue({'QueueName' : queue },function(err,result) {
+    sqs.getQueueUrl({'QueueName' : queue },function(err,result) {
       if (err) {
         throw err;
       }
@@ -74,7 +74,7 @@ var sqs_receive_messages = function(queueUrl,number) {
 
 var sqs_delete_message = function(queueUrl,receiptHandle) {
   var params = {'QueueUrl' : queueUrl, 'ReceiptHandle' : receiptHandle };
-  return new Promise(function() {
+  return new Promise(function(resolve) {
     sqs.deleteMessage(params,function(err,data) {
       if (err) {
         throw err;
@@ -86,7 +86,7 @@ var sqs_delete_message = function(queueUrl,receiptHandle) {
 
 var sqs_reset_timeout = function(queueUrl,receiptHandle) {
   var params = {'QueueUrl' : queueUrl, 'ReceiptHandle' : receiptHandle, 'VisibilityTimeout' : '0' };
-  return new Promise(function() {
+  return new Promise(function(resolve) {
     sqs.deleteMessage(params,function(err,data) {
       if (err) {
         throw err;
@@ -121,19 +121,19 @@ Queue.prototype.getQueue = function getQueue(queue) {
 };
 
 Queue.prototype.sendMessage = function sendMessage(message) {
-  this.getQueue(this.name).then(function(queueUrl) {
+  return this.getQueue(this.name).then(function(queueUrl) {
     return sqs_send_message(queueUrl,message);
   });
 };
 
 Queue.prototype.getActiveMessages = function getActiveMessages() {
-  this.getQueue(this.name).then(function(queueUrl) {
+  return this.getQueue(this.name).then(function(queueUrl) {
     return sqs_get_active_messages(queueUrl);
   });
 };
 
 Queue.prototype.shift = function shift(number) {
-  this.getQueue(this.name).then(function(queueUrl) {
+  return this.getQueue(this.name).then(function(queueUrl) {
     return sqs_receive_messages(queueUrl,number);
   });
 };

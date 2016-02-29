@@ -3,12 +3,15 @@ var querystring = require('querystring');
 require('es6-promise').polyfill();
 
 
-var Queue = require('./queue');
+var Queue = require('./queue').queue;
 var google = require('./google');
 
 exports.downloadEverything = function downloadEverything() {
   var queue = new Queue('DownloadQueue');
-  queue.sendMessage({"foo" : "bar"})
+  queue.sendMessage({"foo" : "bar"}).catch(function(err) {
+    console.error(err);
+    console.error(err.stack);
+  });
   // Push all the shared files into the queue
 }
 
