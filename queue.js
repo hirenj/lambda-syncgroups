@@ -87,8 +87,10 @@ var sqs_delete_message = function(queueUrl,receiptHandle) {
 var sqs_reset_timeout = function(queueUrl,receiptHandle) {
   var params = {'QueueUrl' : queueUrl, 'ReceiptHandle' : receiptHandle, 'VisibilityTimeout' : '0' };
   return new Promise(function(resolve) {
-    sqs.deleteMessage(params,function(err,data) {
+    sqs.changeMessageVisibility(params,function(err,data) {
       if (err) {
+        console.error(err);
+        console.error(err.stack);
         throw err;
       }
       resolve(data);
