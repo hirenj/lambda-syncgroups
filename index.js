@@ -13,12 +13,10 @@ exports.downloadEverything = function downloadEverything(event,context) {
 
   var queue = new Queue('DownloadQueue');
 
-  google.getFiles().then(function(files) {
+  google.getFiles("group-email@domain.com").then(function(files) {
     files = files.splice(0,3);
     return Promise.all(files.map(function(file) {
-      var is_me = false;
-      var permissions = (file.owners || []).map(function(owner) { is_me = is_me || owner.me; return owner.permissionId; });
-      return queue.sendMessage({'id' : file.id, 'name' : file.name, 'md5' : file.md5Checksum, 'permission' : (is_me ? [] : permissions) });
+      return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     }));
   });
   // Push all the shared files into the queue
@@ -58,17 +56,9 @@ exports.downloadFiles = function downloadFiles(event,context) {
     return Promise.all(messages.map(function(message) {
       console.log(message);
       var file = JSON.parse(message.Body);
-      return google.getOwnerGroup(file).catch(function(err) {
-        console.log("Somewhere in here");
-        console.error(err);
-        console.error(err.stack);
-        return message.unshift().then(function() {
-          throw err;
-        });
-      }).then(function() {
+    }).then(function() {
         return message.finalise();
-      });
-    }));
+    });
   }).catch(function(err) {
     console.error(err);
     console.error(err.stack);

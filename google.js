@@ -43,29 +43,18 @@ var google_get_group_membership = function(auth,group) {
   });
 };
 
-var google_get_user_files = function(auth,user) {
+var google_get_group_files = function(auth,group) {
   var service = google.drive('v3');
   return new Promise(function(resolve) {
     //'q' : "sharedWithMe and name contains 'msdata'"
-    service.files.list({'auth' : auth, 'corpus' : 'user', 'q' : "name contains 'msdata'", 'fields' : 'files(id,md5Checksum,owners)' },function(err,result) {
+    service.files.list({'auth' : auth, 'corpus' : 'user', 'q' : "name contains 'msdata' and '"+group+"' in readers", 'fields' : 'files(id,md5Checksum)' },function(err,result) {
       if (err) {
         throw err;
       }
+      result.files.forEach(function(file) {
+        file.group = group;
+      });
       resolve(result.files);
-    });
-  });
-};
-
-var google_get_file_owner_group = function(auth,file) {
-  var service = google.drive('v3');
-  return new Promise(function(resolve) {
-    //'permissionId' : file.permission[0]
-    service.permissions.list({'auth' : auth, 'fileId' : file.id },function(err,result) {
-      console.log("I got back here");
-      if (err) {
-        throw err;
-      }
-      resolve(result);
     });
   });
 };
@@ -85,19 +74,10 @@ var getGroups = function getGroups() {
   });
 };
 
-var getOwnerGroup = function getOwnerGroup(file) {
+var getFiles = function getFiles(group) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
   return getServiceAuth(scopes).then(function(auth) {
-    return google_get_file_owner_group(auth,file);
-  }).then(function(permissions) {
-    return permissions;
-  });
-};
-
-var getFiles = function getFiles() {
-  var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
-  return getServiceAuth(scopes).then(function(auth) {
-    return google_get_user_files(auth,auth.delegate);
+    return google_get_group_files(auth,group);
   }).then(function(files) {
     return files;
   });
