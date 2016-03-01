@@ -6,11 +6,20 @@ require('es6-promise').polyfill();
 var Queue = require('./queue').queue;
 var google = require('./google');
 
-exports.downloadEverything = function downloadEverything() {
+exports.downloadEverything = function downloadEverything(event,context) {
+  if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
+    require('./secrets').use_kms = false;
+  }
+
   var queue = new Queue('DownloadQueue');
-  queue.sendMessage({"foo" : "bar"}).catch(function(err) {
-    console.error(err);
-    console.error(err.stack);
+
+  google.getFiles().then(function(files) {
+    files = files.splice(0,3);
+    return Promise.all(files.map(function(file) {
+      var is_me = false;
+      var permissions = (file.owners || []).map(function(owner) { is_me = is_me || owner.me; return owner.permissionId; });
+      return queue.sendMessage({'id' : file.id, 'name' : file.name, 'md5' : file.md5Checksum, 'permission' : (is_me ? [] : permissions) });
+    }));
   });
   // Push all the shared files into the queue
 }
@@ -25,7 +34,11 @@ exports.updateQueueTokens = function blah() {
 
 // Every minute
 
-exports.downloadFiles = function downloadFiles() {
+exports.downloadFiles = function downloadFiles(event,context) {
+  if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
+    require('./secrets').use_kms = false;
+  }
+
   var queue = new Queue('DownloadQueue');
   var active = queue.getActiveMessages().then(function(active) {
     var diff = 5 - active;
@@ -37,9 +50,28 @@ exports.downloadFiles = function downloadFiles() {
   });
 
   active.then(function(count) {
+    if (count < 1) {
+      throw new Error('Already maximum number of active downloads')
+    }
     return queue.shift(count);
   }).then(function(messages) {
-    return Promise.all(messages.map(function(message) { return message.finalise(); }));
+    return Promise.all(messages.map(function(message) {
+      console.log(message);
+      var file = JSON.parse(message.Body);
+      return google.getOwnerGroup(file).catch(function(err) {
+        console.log("Somewhere in here");
+        console.error(err);
+        console.error(err.stack);
+        return message.unshift().then(function() {
+          throw err;
+        });
+      }).then(function() {
+        return message.finalise();
+      });
+    }));
+  }).catch(function(err) {
+    console.error(err);
+    console.error(err.stack);
   });
 
   // Pop the first file in the queue
