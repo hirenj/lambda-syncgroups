@@ -54,10 +54,11 @@ exports.downloadFiles = function downloadFiles(event,context) {
     return queue.shift(count);
   }).then(function(messages) {
     return Promise.all(messages.map(function(message) {
-      console.log(message);
       var file = JSON.parse(message.Body);
-    }).then(function() {
-        return message.finalise();
+      console.log(file);
+      return message;
+    })).then(function() {
+      return Promise.all( messages.map(function(message) { return message.finalise(); }) );
     });
   }).catch(function(err) {
     console.error(err);

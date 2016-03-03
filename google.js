@@ -54,6 +54,7 @@ var google_get_group_files = function(auth,group) {
       result.files.forEach(function(file) {
         file.group = group;
       });
+      console.log(result.files.length, " files available");
       resolve(result.files);
     });
   });
@@ -95,7 +96,6 @@ var getServiceAuth = function getServiceAuth(scopes) {
   return auth_promise;
 };
 
-exports.getOwnerGroup = getOwnerGroup;
 exports.getFiles = getFiles;
 exports.getServiceAuth = getServiceAuth;
 exports.getGroups = getGroups;
