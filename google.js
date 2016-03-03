@@ -70,6 +70,12 @@ var google_get_file_if_needed = function(auth,file) {
       }
       console.log("Downloading "+file.name,file.id);
       var dest = fs.createWriteStream(file.id+'.msdata.json');
+
+      // var params = {Bucket: 'bucket', Key: 'key', Body: stream};
+      // s3.upload(params, function(err, data) {
+      //   console.log(err, data);
+      // });
+
       service.files.get({
         'auth' : auth,
         'fileId' : file.id ,

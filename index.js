@@ -91,49 +91,46 @@ exports.downloadFiles = function downloadFiles(event,context) {
     }
     return queue.shift(count);
   }).then(function(messages) {
-    return Promise.anyFailed(messages.map(function(message) {
+    messages.forEach(function(message) {
       var file = JSON.parse(message.Body);
       console.log(file.id);
-      return google.downloadFileIfNecessary(file).then(function() {
-        console.log("Done downloading");
-        console.log(file.id);
-        message.done = true;
-        return message.finalise();
+      var sns_message = JSON.stringify({
+        'id' : file.id,
+        'auth_token' : 'AUTH',
+        'md5' : file.md5,
+        'name' : file.name,
+        'queueId' : message.ReceiptHandle
       });
-    })).catch(function(err) {
-      console.error("Had trouble downloading file, placing other pending messages back");
-      console.error(err);
-      console.error(err.stack);
-      return Promise.all( messages.map(function(message) {
-        if (message.done) {
-          return true;
-        }
-        return message.unshift();
-      }));
+      if (! require('./secrets').use_kms) {
+        downloadFile({'Records' : [{'Message' : sns_message }]});
+      } else {
+        // Send message to SNS
+      }
     });
   }).catch(function(err) {
     console.error(err);
     console.error(err.stack);
   });
-
-  // Pop the first file in the queue
-
-  // Read the permissions / metadata
-
-  // If the first token is expired, trigger an updateQueueTokens
-
-  // See if file has new checksum, and get the group it belongs to.
-  // If good, publish this file + metadata onto the downloading SNS topic if the queue length <= 5
 };
 
-exports.downloadFile = function downloadFile() {
+exports.downloadFile = function downloadFile(event,context) {
   // Download a single file to the group path given the access token
   // Remove from the downloading queue
   // Push back onto the pending queue if there is a failure
-  // var params = {Bucket: 'bucket', Key: 'key', Body: stream};
-  // s3.upload(params, function(err, data) {
-  //   console.log(err, data);
-  // });
+  var queue = new Queue('DownloadQueue');
+
+  var file = JSON.parse(event.Records[0].Message);
+  google.downloadFileIfNecessary(file).then(function() {
+    console.log("Done downloading");
+    console.log(file.id);
+    return queue.finalise(file.queueId);
+  }).catch(function(err) {
+    console.error(err);
+    return queue.unshift(file.queueId);
+  }).then(function() {
+    console.log("Done download worker");
+  });
+
 }
 
 

@@ -140,4 +140,17 @@ Queue.prototype.shift = function shift(number) {
   });
 };
 
+Queue.prototype.finalise = function finalise(receiptHandle) {
+  return this.getQueue(this.name).then(function(queueUrl) {
+    return sqs_delete_message(queueUrl, message.ReceiptHandle );
+  });
+};
+
+Queue.prototype.finalise = function finalise(receiptHandle) {
+  return this.getQueue(this.name).then(function(queueUrl) {
+    return sqs_reset_timeout(queueUrl, receiptHandle );
+  });
+};
+
+
 exports.queue = Queue;
