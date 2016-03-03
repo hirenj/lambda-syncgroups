@@ -6,6 +6,44 @@ require('es6-promise').polyfill();
 var Queue = require('./queue').queue;
 var google = require('./google');
 
+
+Promise.anyFailed = function(arrayOfPromises) {
+  // For each promise that resolves or rejects,
+  // make them all resolve.
+  // Record which ones did resolve or reject
+  var resolvingPromises = arrayOfPromises.map(function(promise) {
+    return promise.then(function(result) {
+      return {
+        resolve: true,
+        result: result
+      };
+    }, function(error) {
+      return {
+        resolve: false,
+        result: error
+      };
+    });
+  });
+
+  return Promise.all(resolvingPromises).then(function(results) {
+    // Count how many passed/failed
+    var passed = [], failed = [], allPassed = true;
+    results.forEach(function(result) {
+      if(! result.resolve) {
+        allPassed = false;
+      }
+      passed.push(result.resolve ? result.result : null);
+      failed.push(result.resolve ? null : result.result);
+    });
+
+    if(! allPassed) {
+      throw failed;
+    } else {
+      return passed;
+    }
+  });
+};
+
 exports.downloadEverything = function downloadEverything(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
@@ -53,12 +91,25 @@ exports.downloadFiles = function downloadFiles(event,context) {
     }
     return queue.shift(count);
   }).then(function(messages) {
-    return Promise.all(messages.map(function(message) {
+    return Promise.anyFailed(messages.map(function(message) {
       var file = JSON.parse(message.Body);
-      console.log(file);
-      return message;
-    })).then(function() {
-      return Promise.all( messages.map(function(message) { return message.finalise(); }) );
+      console.log(file.id);
+      return google.downloadFileIfNecessary(file).then(function() {
+        console.log("Done downloading");
+        console.log(file.id);
+        message.done = true;
+        return message.finalise();
+      });
+    })).catch(function(err) {
+      console.error("Had trouble downloading file, placing other pending messages back");
+      console.error(err);
+      console.error(err.stack);
+      return Promise.all( messages.map(function(message) {
+        if (message.done) {
+          return true;
+        }
+        return message.unshift();
+      }));
     });
   }).catch(function(err) {
     console.error(err);

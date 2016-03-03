@@ -1,4 +1,5 @@
 var google = require('googleapis');
+var fs = require('fs');
 
 var get_service_auth = function get_service_auth(secret,scopes) {
   return new Promise(function(resolve) {
@@ -47,16 +48,41 @@ var google_get_group_files = function(auth,group) {
   var service = google.drive('v3');
   return new Promise(function(resolve) {
     //'q' : "sharedWithMe and name contains 'msdata'"
-    service.files.list({'auth' : auth, 'corpus' : 'user', 'q' : "name contains 'msdata' and '"+group+"' in readers", 'fields' : 'files(id,md5Checksum)' },function(err,result) {
+    service.files.list({'auth' : auth, 'corpus' : 'user', 'q' : "name contains 'msdata' and '"+group+"' in readers", 'fields' : 'files(id,md5Checksum,name)' },function(err,result) {
       if (err) {
         throw err;
       }
       result.files.forEach(function(file) {
         file.group = group;
       });
-      console.log(result.files.length, " files available");
+      console.log(result.files.length, "files available");
       resolve(result.files);
     });
+  });
+};
+
+var google_get_file_if_needed = function(auth,file) {
+  var service = google.drive('v3');
+  return new Promise(function(resolve,reject) {
+    fs.lstat(file.id+'.msdata.json',function(err,stats) {
+      if (! err) {
+        return resolve(true);
+      }
+      console.log("Downloading "+file.name,file.id);
+      var dest = fs.createWriteStream(file.id+'.msdata.json');
+      service.files.get({
+        'auth' : auth,
+        'fileId' : file.id ,
+        'alt' : 'media'
+      }).on('end',resolve).on('error',reject).pipe(dest);
+    })
+  });
+};
+
+var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
+  var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
+  return getServiceAuth(scopes).then(function(auth) {
+    return google_get_file_if_needed(auth,file);
   });
 };
 
@@ -96,6 +122,7 @@ var getServiceAuth = function getServiceAuth(scopes) {
   return auth_promise;
 };
 
+exports.downloadFileIfNecessary = downloadFileIfNecessary;
 exports.getFiles = getFiles;
 exports.getServiceAuth = getServiceAuth;
 exports.getGroups = getGroups;
