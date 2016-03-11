@@ -72,8 +72,8 @@ var google_get_file_if_needed_s3 = function(auth,file) {
 
   return new Promise(function(resolve,reject) {
     var params = {
-      Bucket: 'test-gator', /* required */
-      Key: 'uploads/'+file.id, /* required */
+      Bucket: 'test-gator',
+      Key: 'uploads/'+file.id,
       IfNoneMatch: '"'+file.md5+'"'
     };
     s3.headObject(params, function(err, data) {
@@ -122,6 +122,7 @@ var google_get_file_if_needed_local = function(auth,file) {
   return new Promise(function(resolve,reject) {
     fs.lstat(file.id+'.msdata.json',function(err,stats) {
       if (! err) {
+        // Skip checking MD5
         return resolve(true);
       }
       console.log("Downloading "+file.name,file.id);
@@ -138,6 +139,14 @@ var google_get_file_if_needed_local = function(auth,file) {
 
 var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
+
+  if (file.auth_token && file.auth_token.access_token) {
+    var auth_client = new google.auth.OAuth2();
+    auth_client.credentials = file.auth_token;
+    delete file.auth_token.refresh_token;
+    return google_get_file_if_needed(auth_client,file);
+  }
+
   return getServiceAuth(scopes).then(function(auth) {
     return google_get_file_if_needed(auth,file);
   });

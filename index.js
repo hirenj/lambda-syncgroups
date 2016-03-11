@@ -75,6 +75,12 @@ exports.downloadFiles = function downloadFiles(event,context) {
     require('./secrets').use_kms = false;
   }
 
+  var auth_data = null;
+
+  var have_auth = google.getServiceAuth(["https://www.googleapis.com/auth/drive.readonly"]).then(function(auth) {
+    auth_data = auth.credentials;
+  });
+
   var queue = new Queue('DownloadQueue');
   var active = queue.getActiveMessages().then(function(active) {
     var diff = 5 - active;
@@ -85,7 +91,8 @@ exports.downloadFiles = function downloadFiles(event,context) {
     }
   });
 
-  active.then(function(count) {
+
+  active.then(have_auth).then(function(count) {
     if (count < 1) {
       throw new Error('Already maximum number of active downloads')
     }
@@ -96,7 +103,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
       console.log(file.id);
       var sns_message = JSON.stringify({
         'id' : file.id,
-        'auth_token' : 'AUTH',
+        'auth_token' : auth_data,
         'md5' : file.md5,
         'name' : file.name,
         'queueId' : message.ReceiptHandle
