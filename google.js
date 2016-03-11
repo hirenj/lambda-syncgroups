@@ -62,6 +62,62 @@ var google_get_group_files = function(auth,group) {
 };
 
 var google_get_file_if_needed = function(auth,file) {
+  return google_get_file_if_needed_s3(auth,file);
+}
+
+var google_get_file_if_needed_s3 = function(auth,file) {
+  var service = google.drive('v3');
+  var AWS = require('aws-sdk');
+  var s3 = new AWS.S3({region:'us-east-1'});
+
+  return new Promise(function(resolve,reject) {
+    var params = {
+      Bucket: 'test-gator', /* required */
+      Key: 'uploads/'+file.id, /* required */
+      IfNoneMatch: '"'+file.md5+'"'
+    };
+    s3.headObject(params, function(err, data) {
+      if (err) {
+
+        if (err.statusCode >= 500) {
+          reject(err);
+          return;
+        }
+
+        if (err.statusCode == 304) {
+          console.log("Already uploaded");
+          resolve(true);
+          return;
+        }
+
+        if (err.statusCode == 404) {
+          console.log("No file, need to upload");
+        }
+      }
+
+      var in_stream = service.files.get({
+        'auth' : auth,
+        'fileId' : file.id ,
+        'alt' : 'media'
+      });
+      var stream = new require('stream').PassThrough();
+      in_stream.pipe(stream);
+      params.Body = stream;
+      params.ContentMD5 = new Buffer(file.md5,'hex').toString('base64');
+      var options = {partSize: 15 * 1024 * 1024, queueSize: 1};
+      s3.upload(params, options, function(err, data) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(data);
+      });
+    });
+
+  });
+};
+
+var google_get_file_if_needed_local = function(auth,file) {
   var service = google.drive('v3');
   return new Promise(function(resolve,reject) {
     fs.lstat(file.id+'.msdata.json',function(err,stats) {
@@ -70,11 +126,6 @@ var google_get_file_if_needed = function(auth,file) {
       }
       console.log("Downloading "+file.name,file.id);
       var dest = fs.createWriteStream(file.id+'.msdata.json');
-
-      // var params = {Bucket: 'bucket', Key: 'key', Body: stream};
-      // s3.upload(params, function(err, data) {
-      //   console.log(err, data);
-      // });
 
       service.files.get({
         'auth' : auth,

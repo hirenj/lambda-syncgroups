@@ -102,7 +102,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
         'queueId' : message.ReceiptHandle
       });
       if (! require('./secrets').use_kms) {
-        downloadFile({'Records' : [{'Message' : sns_message }]});
+        exports.downloadFile({'Records' : [{'Message' : sns_message }]});
       } else {
         // Send message to SNS
       }
@@ -126,6 +126,8 @@ exports.downloadFile = function downloadFile(event,context) {
     return queue.finalise(file.queueId);
   }).catch(function(err) {
     console.error(err);
+    console.error(err.stack);
+    console.log("Unshifting job");
     return queue.unshift(file.queueId);
   }).then(function() {
     console.log("Done download worker");

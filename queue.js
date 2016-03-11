@@ -146,7 +146,7 @@ Queue.prototype.finalise = function finalise(receiptHandle) {
   });
 };
 
-Queue.prototype.finalise = function finalise(receiptHandle) {
+Queue.prototype.unshift = function finalise(receiptHandle) {
   return this.getQueue(this.name).then(function(queueUrl) {
     return sqs_reset_timeout(queueUrl, receiptHandle );
   });
