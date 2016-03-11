@@ -9,6 +9,7 @@
   "author": "",
   "license": "",
   "dependencies": {
+    "JSONStream": "^1.1.1",
     "aws-sdk": "^2.2.38",
     "es6-promise": "^3.1.2",
     "googleapis": "^2.1.7",
