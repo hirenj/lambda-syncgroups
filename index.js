@@ -60,14 +60,6 @@ exports.downloadEverything = function downloadEverything(event,context) {
   // Push all the shared files into the queue
 }
 
-exports.readChangedFiles = function sdfdsf() {
-  // Push urls for each of the changed files into the pending queue along with an initial access token and max age
-};
-
-exports.updateQueueTokens = function blah() {
-  // Update all tokens on the queue
-}
-
 // Every minute
 
 exports.downloadFiles = function downloadFiles(event,context) {
