@@ -63,6 +63,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
 // Every minute
 
 exports.downloadFiles = function downloadFiles(event,context) {
+  console.log("Lambda downloadFiles execution");
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }
@@ -100,16 +101,10 @@ exports.downloadFiles = function downloadFiles(event,context) {
         'name' : file.name,
         'queueId' : message.ReceiptHandle
       });
-      // TODO - get TopicArn from API config, or
-      // from a config file
-      var sns_params = { TopicArn: 'download', 'Message' : sns_message };
-      if (! require('./secrets').use_kms) {
-        require('./lib/snish').publish(sns_params,function(err,data) {
-          console.log("Triggered download");
-        });
-      } else {
-        // Send message to SNS
-      }
+      var sns_params = { 'topic': 'download', 'Message' : sns_message };
+      require('./lib/snish').publish(sns_params).then(function() {
+        console.log("Triggered download");
+      });
     });
   }).catch(function(err) {
     console.error(err);
@@ -118,6 +113,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
 };
 
 exports.downloadFile = function downloadFile(event,context) {
+  console.log("Lambda downloadFile execution");
   // Download a single file to the group path given the access token
   // Remove from the downloading queue
   // Push back onto the pending queue if there is a failure
@@ -142,10 +138,11 @@ exports.downloadFile = function downloadFile(event,context) {
 // Subscribe the lambda functions to the appropriate sns topics
 exports.subscribeNotifications = function subscribeNotifications(event,context) {
   var snish = require('./lib/snish');
+  snish.use_aws = false;
 
   // TODO - get TopicArn from API config, or
   // from a config file
-  snish.subscribe({ TopicArn: 'download', Protocol: 'https' },exports.downloadFile);
+  snish.subscribe({ 'topic': 'download', Protocol: 'https' },exports.downloadFile);
 
   // Do the download of files every minute
   setInterval(exports.downloadFiles,60);
@@ -154,6 +151,7 @@ exports.subscribeNotifications = function subscribeNotifications(event,context) 
 };
 
 exports.syncGappsGroups = function syncGappsGroups(event,context) {
+  console.log("Lambda syncGappsGroups execution");
   if (context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }

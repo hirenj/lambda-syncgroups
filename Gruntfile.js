@@ -5,9 +5,6 @@
 'use strict';
 module.exports = function(grunt) {
 	require('load-grunt-tasks')(grunt);
-	if(grunt.option('account-id') === undefined){
-		return grunt.fail.fatal('--account-id is required', 1);
-	}
 
 	var path = require('path');
 	grunt.initConfig({
@@ -28,7 +25,8 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'syncGappsGroups',
 				},
-				arn: 'arn:aws:lambda:us-east-1:' + grunt.option('account-id') + ':function:syncGappsGroups',
+				function: "syncGappsGroups",
+				arn: null,
 			},
 		},
 		lambda_package: {
@@ -52,11 +50,45 @@ module.exports = function(grunt) {
 		});
 	});
 
+	grunt.registerTask('reencrypt-secrets-aws','Re-encrypt secrets for AWS',function() {
+		var done = this.async();
+		var keyId = 'alias/default';
+		var secrets = require('./secrets');
+		var fs = require('fs');
+		secrets.use_kms = false;
+		secrets.getSecret().then(function(secret) {
+			var KMS = require('aws-sdk').KMS;
+			var kms = new KMS({region:'us-east-1'});
+			kms.encrypt({ 'Plaintext' : secret , 'KeyId' : keyId },function(err,encrypted) {
+				if (err) {
+					throw err;
+				}
+				fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'KeyId' : encrypted.KeyId, 'CiphertextBlob' : encrypted.CiphertextBlob.toString('base64') } ));
+				secrets.use_kms = true;
+				secrets.getSecret().then(function(new_secret) {
+					console.log(JSON.parse(new_secret).client_email == new_secret);
+					done();
+				}).catch(function(err) {
+					console.log(err,err.stack);
+					done();
+				});
+			});
+		}).catch(function(err) {
+			console.log(err);
+			console.log(err.stack);
+			done();
+		});
+	});
+
 	grunt.registerTask('encrypt-secrets-aws','Encrypt secrets',function(keyId) {
 		var AWS = require('aws-sdk');
-		var kms = new AWS.KMS({region:'eu-west-1'});
+		var kms = new AWS.KMS({region:'us-east-1'});
+		var keyId = 'alias/default';
 		var fs = require('fs');
-		kms.encrypt({ 'PlainText' : fs.readFileSync('creds.json','utf8'), 'KeyId' : keyId },function(err,encrypted) {
+		kms.encrypt({ 'Plaintext' : fs.readFileSync('creds.json','utf8'), 'KeyId' : keyId },function(err,encrypted) {
+			if (err) {
+				throw err;
+			}
 			fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'CiphertextBlob' : encrypted } ));
 		});
 	});

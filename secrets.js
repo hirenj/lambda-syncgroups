@@ -16,7 +16,9 @@ var getEncryptedSecret = function getEncryptedSecret() {
     throw new Error("Not a kms encrypted secret");
   }
 
-  delete kms.store;
+  delete encryptedSecret.store;
+  delete encryptedSecret.KeyId;
+  encryptedSecret.CiphertextBlob = new Buffer(encryptedSecret.CiphertextBlob, 'base64');
 
   return new Promise(function(resolve,reject) {
     kms.decrypt(encryptedSecret, function(err, data) {
