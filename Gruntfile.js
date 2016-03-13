@@ -10,17 +10,17 @@ module.exports = function(grunt) {
 	grunt.initConfig({
 		lambda_invoke: {
 			default: {
-				package: 'syncGappsGroups',
+				package: 'syncgroups',
 				options: {
 					file_name: 'index.js',
 					handler: 'syncGappsGroups',
 					event: 'event.json',
 				},
-			}
+			},
 		},
 		lambda_deploy: {
 			default: {
-				package: 'syncGappsGroups',
+				package: 'syncgroups',
 				options: {
 					file_name: 'index.js',
 					handler: 'syncGappsGroups',
@@ -28,11 +28,23 @@ module.exports = function(grunt) {
 				function: "syncGappsGroups",
 				arn: null,
 			},
+			downloadFile: {
+				package: 'syncgroups',
+				options: {
+					file_name: 'index.js',
+					handler: 'index.downloadFile',
+				},
+				function: 'downloadFile',
+				arn: null,
+			}
 		},
 		lambda_package: {
 			default: {
-				package: 'syncGappsGroups',
+				package: 'syncgroups',
 			},
+			downloadFile: {
+				package: 'syncgroups',
+			}
 		},
 		env: {
 			prod: {
@@ -92,7 +104,7 @@ module.exports = function(grunt) {
 			fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'CiphertextBlob' : encrypted } ));
 		});
 	});
-
+	grunt.registerTask('deploy:downloadFile', ['env:prod', 'lambda_package:downloadFile', 'lambda_deploy:downloadFile']);
 	grunt.registerTask('deploy', ['env:prod', 'lambda_package', 'lambda_deploy']);
 	grunt.registerTask('test', ['lambda_invoke']);
 };

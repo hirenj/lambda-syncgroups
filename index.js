@@ -58,7 +58,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
     }));
   });
   // Push all the shared files into the queue
-}
+};
 
 // Every minute
 
@@ -104,11 +104,17 @@ exports.downloadFiles = function downloadFiles(event,context) {
       var sns_params = { 'topic': 'download', 'Message' : sns_message };
       require('./lib/snish').publish(sns_params).then(function() {
         console.log("Triggered download");
+      }).catch(function(err) {
+        console.log("Didnt trigger download");
+        console.error(err);
+        console.error(err.stack);
+        message.unshift();
       });
     });
   }).catch(function(err) {
     console.error(err);
     console.error(err.stack);
+    message.unshift();
   });
 };
 
@@ -118,8 +124,7 @@ exports.downloadFile = function downloadFile(event,context) {
   // Remove from the downloading queue
   // Push back onto the pending queue if there is a failure
   var queue = new Queue('DownloadQueue');
-
-  var file = JSON.parse(event.Records[0].Message);
+  var file = JSON.parse(event.Records[0].Sns.Message);
   google.downloadFileIfNecessary(file).then(function() {
     console.log("Done downloading");
     console.log(file.id);
@@ -131,9 +136,10 @@ exports.downloadFile = function downloadFile(event,context) {
     return queue.unshift(file.queueId);
   }).then(function() {
     console.log("Done download worker");
+    context.succeed('Triggered download');
   });
 
-}
+};
 
 // Subscribe the lambda functions to the appropriate sns topics
 exports.subscribeNotifications = function subscribeNotifications(event,context) {
