@@ -43,7 +43,9 @@ Promise.anyFailed = function(arrayOfPromises) {
     }
   });
 };
-
+// Permissions: Roles downloadQueueSource / keyDecrypter
+//   - KMS decrypt
+//   - SQS sendMessage
 exports.downloadEverything = function downloadEverything(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
@@ -61,6 +63,10 @@ exports.downloadEverything = function downloadEverything(event,context) {
 };
 
 // Every minute
+// Permissions: Roles keyDecrypter / downloadQueueConsumer
+//   - SNS publish
+//   - KMS decrypt
+//   - SQS readMessage changeMessageVisbility
 
 exports.downloadFiles = function downloadFiles(event,context) {
   console.log("Lambda downloadFiles execution");
@@ -118,6 +124,10 @@ exports.downloadFiles = function downloadFiles(event,context) {
   });
 };
 
+// Permissions: Roles uploadsSource / downloadQueueConsumer
+//   - SNS receive event source
+//   - SQS deleteMessage changeMessageVisbility
+//   - S3 put file / Read metadata
 exports.downloadFile = function downloadFile(event,context) {
   console.log("Lambda downloadFile execution");
   // Download a single file to the group path given the access token
@@ -156,6 +166,7 @@ exports.subscribeNotifications = function subscribeNotifications(event,context) 
   // Subscribe to S3 events from config-derived bucket / prefix
 };
 
+// Maybe this function should move to another lambda function set
 exports.syncGappsGroups = function syncGappsGroups(event,context) {
   console.log("Lambda syncGappsGroups execution");
   if (context.awsRequestId == 'LAMBDA_INVOKE') {
