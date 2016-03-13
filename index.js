@@ -100,8 +100,13 @@ exports.downloadFiles = function downloadFiles(event,context) {
         'name' : file.name,
         'queueId' : message.ReceiptHandle
       });
+      // TODO - get TopicArn from API config, or
+      // from a config file
+      var sns_params = { TopicArn: 'download', 'Message' : sns_message };
       if (! require('./secrets').use_kms) {
-        exports.downloadFile({'Records' : [{'Message' : sns_message }]});
+        require('./lib/snish').publish(sns_params,function(err,data) {
+          console.log("Triggered download");
+        });
       } else {
         // Send message to SNS
       }
@@ -134,6 +139,19 @@ exports.downloadFile = function downloadFile(event,context) {
 
 }
 
+// Subscribe the lambda functions to the appropriate sns topics
+exports.subscribeNotifications = function subscribeNotifications(event,context) {
+  var snish = require('./lib/snish');
+
+  // TODO - get TopicArn from API config, or
+  // from a config file
+  snish.subscribe({ TopicArn: 'download', Protocol: 'https' },exports.downloadFile);
+
+  // Do the download of files every minute
+  setInterval(exports.downloadFiles,60);
+
+  // Subscribe to S3 events from config-derived bucket / prefix
+};
 
 exports.syncGappsGroups = function syncGappsGroups(event,context) {
   if (context.awsRequestId == 'LAMBDA_INVOKE') {
