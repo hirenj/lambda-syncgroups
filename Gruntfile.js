@@ -13,7 +13,7 @@ module.exports = function(grunt) {
 				package: 'syncgroups',
 				options: {
 					file_name: 'index.js',
-					handler: 'syncGappsGroups',
+					handler: 'populateGroupGrants',
 					event: 'event.json',
 				},
 			},
@@ -23,9 +23,9 @@ module.exports = function(grunt) {
 				package: 'syncgroups',
 				options: {
 					file_name: 'index.js',
-					handler: 'syncGappsGroups',
+					handler: 'populateGroupGrants',
 				},
-				function: "syncGappsGroups",
+				function: "populateGroupGrants",
 				arn: null,
 			},
 			downloadFile: {

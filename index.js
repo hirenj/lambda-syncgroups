@@ -166,18 +166,20 @@ exports.subscribeNotifications = function subscribeNotifications(event,context) 
   // Subscribe to S3 events from config-derived bucket / prefix
 };
 
-// Maybe this function should move to another lambda function set
-exports.syncGappsGroups = function syncGappsGroups(event,context) {
+// Permissions: Roles keyDecrypter / updateGrants
+//   - DynamoDb grants table put items
+exports.populateGroupGrants = function populateGroupGrants(event,context) {
   console.log("Lambda syncGappsGroups execution");
   if (context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }
-  google.getGroups().then(function(group_datas) {
-    console.log(JSON.stringify(group_datas));
-    return group_datas;
+  google.getGroups().then(function(grants) {
+    return require('./grants').putGrants('grants',grants);
   }).catch(function(err) {
     console.error(err);
     console.error(err.stack);
+  }).then(function() {
+    context.succeed('Synchronised group memberships with grants');
   });
 
 };
