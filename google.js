@@ -37,7 +37,7 @@ var google_get_group_membership = function(auth,group) {
         throw err;
       }
       var members_array = (data.members || []).map(function(member) {
-        return { 'id' : member.id, 'email' : member.email };
+        return { 'id' : "googleuser-"+member.id, 'email' : member.email };
       });
       resolve(members_array);
     });
@@ -160,7 +160,7 @@ var getGroups = function getGroups() {
     return getServiceAuth(scopes).then(function(auth) {
       return Promise.all(groups.map(function(group) {
         return google_get_group_membership(auth,group).then(function(members) {
-          return {'group' : group, 'members' : members };
+          return {'groupid' : group, 'type' : 'googlegroup', 'members' : members };
         });
       }));
     });
