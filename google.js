@@ -73,7 +73,7 @@ var google_get_file_if_needed_s3 = function(auth,file) {
   return new Promise(function(resolve,reject) {
     var params = {
       Bucket: 'test-gator',
-      Key: 'uploads/'+file.id,
+      Key: 'uploads/'+ 'group-'+ file.groupid + '/' +file.id,
       IfNoneMatch: '"'+file.md5+'"'
     };
     s3.headObject(params, function(err, data) {

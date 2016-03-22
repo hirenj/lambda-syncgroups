@@ -9,7 +9,7 @@ var upload_data_record_s3 = function upload_data_record_s3(key,data) {
   return new Promise(function(resolve,reject) {
     var params = {
       'Bucket': 'test-gator',
-      'Key': 'parsed/'+key,
+      'Key': key,
       'ContentType': 'application/json'
     };
     var datablock = JSON.stringify(data);
@@ -49,6 +49,12 @@ var retrieve_file = function retrieve_file(filekey) {
 var split_file = function split_file(filekey) {
   var rs = retrieve_file(filekey);
   var upload_promises = [];
+
+  var filekey_components = filekey.split('/');
+  var group_id = filekey_components[1];
+  var dataset_id = filekey_components[2];
+  var accessions = [];
+
   rs.pipe(JSONStream.parse(['data', {'emitKey': true}])).on('data',function(dat) {
 
     // Output data should end up looking like this:
@@ -58,14 +64,16 @@ var split_file = function split_file(filekey) {
 
     var datablock = {'data': dat.value };
 
-    //FIXME - Path for the parsed records (key field), part of API design
-    upload_promises.push(upload_data_record(filekey+"/data/"+dat.key, datablock));
+    accessions.push(dat.key);
+
+    upload_promises.push(upload_data_record("/data/latest/"+group_id+":"+dataset_id+"/"+dat.key, datablock));
   });
 
   //FIXME - upload metadata as the last part of the upload, marker of done.
   //        should be part of api request
   rs.pipe(JSONStream.parse(['metadata'])).on('data',function(dat) {
-    console.log({'metadata': dat });
+    console.log({'metadata': dat, 'accessions' : accessions });
+    upload_promises.push(Promise.resolve(true));
   });
   return new Promise(function(resolve,reject) {
     rs.on('end',function() {

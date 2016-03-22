@@ -105,6 +105,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
         'auth_token' : auth_data,
         'md5' : file.md5,
         'name' : file.name,
+        'groupid' : file.group,
         'queueId' : message.ReceiptHandle
       });
       var sns_params = { 'topic': 'download', 'Message' : sns_message };
