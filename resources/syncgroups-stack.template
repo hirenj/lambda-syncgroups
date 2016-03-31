@@ -37,7 +37,8 @@
             }
           ]
         }
-      }
+      },
+      "DependsOn" : "WriteGrants"
     },
     "LogWriterPolicy": {
       "Type": "AWS::IAM::Policy",
