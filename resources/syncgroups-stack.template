@@ -21,26 +21,7 @@
         "VisibilityTimeout": "300"
       }
     },  
-    "LambdaExecRole": {
-      "Type": "AWS::IAM::Role",
-      "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteGrants"}],
-        "AssumeRolePolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com"
-              },
-              "Action": "sts:AssumeRole"
-            }
-          ]
-        }
-      },
-      "DependsOn" : "WriteGrants"
-    },
-    "LogWriterPolicy": {
+    "SyncGroupsLogWriterPolicy": {
       "Type": "AWS::IAM::Policy",
       "Properties" : {
         "PolicyName" : "LogWriterPolicy",
@@ -58,9 +39,164 @@
               }
             ]
         },
-        "Roles" : [ { "Ref" : "LambdaExecRole" } ]
+        "Roles" : [ { "Ref" : "LambdaPopulateGroupGrantsRole" },
+                    { "Ref" : "LambdaDownloadFilesRole" },
+                    { "Ref" : "LambdaDownloadFileRole" },
+                    { "Ref" : "LambdaDownloadEverythingRole" }]
       },
-      "DependsOn" : "LambdaExecRole"
+      "DependsOn" : ["LambdaPopulateGroupGrantsRole","LambdaDownloadFilesRole","LambdaDownloadFileRole","LambdaDownloadEverythingRole"]
+    },
+    "LambdaPopulateGroupGrantsRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteGrants"}],
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      },
+      "DependsOn" : [ "WriteGrants", "DecryptKeys" ]
+    },
+    "LambdaDownloadFilesRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}],
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      },
+      "DependsOn" : [ "ConsumeDownloadQueue", "DecryptKeys" ]
+    },
+    "LambdaDownloadFileRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "ManagedPolicyArns" : [ { "Ref" : "ConsumeDownloadQueue" }, {"Ref" : "UploadsSource"}],
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      },
+      "DependsOn" : [ "ConsumeDownloadQueue", "UploadsSource" ]
+    },
+    "LambdaDownloadEverythingRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}],
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      },
+      "DependsOn" : [ "DecryptKeys", "WriteDownloadQueue" ]
+    },
+    "populateGroupGrants" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code" : {
+          "ZipFile": { "Fn::Join": ["", [
+            "exports.exchangetoken = function(event, context) {",
+            "  context.succeed('OK');",
+            "};"
+          ]]}
+        },
+        "Description" : "populateGroupGrants",
+        "Handler" : "index.populateGroupGrants",
+        "Role" : {"Fn::GetAtt" : ["LambdaPopulateGroupGrantsRole", "Arn"] },
+        "Runtime" : "nodejs",
+        "MemorySize" : 128,
+        "Timeout" : 20
+      },
+      "DependsOn" : "LambdaPopulateGroupGrantsRole"
+    },
+    "downloadFile" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code" : {
+          "ZipFile": { "Fn::Join": ["", [
+            "exports.downloadFile = function(event, context) {",
+            "  context.succeed('OK');",
+            "};"
+          ]]}
+        },
+        "Description" : "downloadFile",
+        "Handler" : "index.downloadFile",
+        "Role" : {"Fn::GetAtt" : ["LambdaDownloadFileRole", "Arn"] },
+        "Runtime" : "nodejs",
+        "MemorySize" : 128,
+        "Timeout" : 20
+      },
+      "DependsOn" : "LambdaDownloadFileRole"
+    },
+    "downloadFiles" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code" : {
+          "ZipFile": { "Fn::Join": ["", [
+            "exports.downloadFiles = function(event, context) {",
+            "  context.succeed('OK');",
+            "};"
+          ]]}
+        },
+        "Description" : "downloadFiles",
+        "Handler" : "index.downloadFiles",
+        "Role" : {"Fn::GetAtt" : ["LambdaDownloadFilesRole", "Arn"] },
+        "Runtime" : "nodejs",
+        "MemorySize" : 128,
+        "Timeout" : 20
+      },
+      "DependsOn" : "LambdaDownloadFilesRole"
+    },
+    "downloadEverything" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code" : {
+          "ZipFile": { "Fn::Join": ["", [
+            "exports.downloadEverything = function(event, context) {",
+            "  context.succeed('OK');",
+            "};"
+          ]]}
+        },
+        "Description" : "downloadEverything",
+        "Handler" : "index.downloadEverything",
+        "Role" : {"Fn::GetAtt" : ["LambdaDownloadEverythingRole", "Arn"] },
+        "Runtime" : "nodejs",
+        "MemorySize" : 128,
+        "Timeout" : 20
+      },
+      "DependsOn" : "LambdaDownloadEverythingRole"
     },
     "DecryptKeys": {
       "Type": "AWS::IAM::ManagedPolicy",

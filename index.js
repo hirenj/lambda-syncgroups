@@ -6,6 +6,9 @@ require('es6-promise').polyfill();
 var Queue = require('./queue').queue;
 var google = require('./google');
 
+var grants_table = 'grants';
+var download_topic = 'download';
+var download_queue = 'DownloadQueue';
 
 Promise.anyFailed = function(arrayOfPromises) {
   // For each promise that resolves or rejects,
@@ -51,7 +54,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
     require('./secrets').use_kms = false;
   }
 
-  var queue = new Queue('DownloadQueue');
+  var queue = new Queue(download_queue);
 
   google.getFiles("group-email@domain.com").then(function(files) {
     files = files.splice(0,3);
@@ -80,7 +83,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
     auth_data = auth.credentials;
   });
 
-  var queue = new Queue('DownloadQueue');
+  var queue = new Queue(download_queue);
   var active = queue.getActiveMessages().then(function(active) {
     var diff = 5 - active;
     if (diff < 0) {
@@ -108,7 +111,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
         'groupid' : file.group,
         'queueId' : message.ReceiptHandle
       });
-      var sns_params = { 'topic': 'download', 'Message' : sns_message };
+      var sns_params = { 'topic': download_topic, 'Message' : sns_message };
       require('./lib/snish').publish(sns_params).then(function() {
         console.log("Triggered download");
       }).catch(function(err) {
@@ -134,7 +137,7 @@ exports.downloadFile = function downloadFile(event,context) {
   // Download a single file to the group path given the access token
   // Remove from the downloading queue
   // Push back onto the pending queue if there is a failure
-  var queue = new Queue('DownloadQueue');
+  var queue = new Queue(download_queue);
   var file = JSON.parse(event.Records[0].Sns.Message);
   google.downloadFileIfNecessary(file).then(function() {
     console.log("Done downloading");
@@ -159,7 +162,7 @@ exports.subscribeNotifications = function subscribeNotifications(event,context) 
 
   // TODO - get TopicArn from API config, or
   // from a config file
-  snish.subscribe({ 'topic': 'download', Protocol: 'https' },exports.downloadFile);
+  snish.subscribe({ 'topic': download_topic, 'Protocol': 'https' },exports.downloadFile);
 
   // Do the download of files every minute
   setInterval(exports.downloadFiles,60);
@@ -175,7 +178,7 @@ exports.populateGroupGrants = function populateGroupGrants(event,context) {
     require('./secrets').use_kms = false;
   }
   google.getGroups().then(function(grants) {
-    return require('./grants').putGrants('grants',grants);
+    return require('./grants').putGrants(grants_table,grants);
   }).catch(function(err) {
     console.error(err);
     console.error(err.stack);
