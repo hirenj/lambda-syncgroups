@@ -11,7 +11,11 @@
       "Type" : "AWS::SNS::Topic",
       "Properties" : {
         "DisplayName" : "Files to download from Google drive",
-        "TopicName" : { "Fn::Join" :  [ "-", [ { "Ref" : "AWS::StackName" }, "download" ] ] }
+        "TopicName" : { "Fn::Join" :  [ "-", [ { "Ref" : "AWS::StackName" }, "download" ] ] },
+        "Subscription" : [{
+          "Endpoint" : { "Fn::GetAtt" : [ "downloadFile" , "Arn" ] },
+          "Protocol" : "lambda"
+        }]
       }
     },
     "DownloadQueue" : {
@@ -68,7 +72,7 @@
     "LambdaDownloadFilesRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}, {"Ref" : "WriteDownloadTopic"}],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -82,7 +86,7 @@
           ]
         }
       },
-      "DependsOn" : [ "ConsumeDownloadQueue", "DecryptKeys" ]
+      "DependsOn" : [ "ConsumeDownloadQueue", "WriteDownloadTopic", "DecryptKeys" ]
     },
     "LambdaDownloadFileRole": {
       "Type": "AWS::IAM::Role",
@@ -248,9 +252,22 @@
                   "Effect": "Allow",
                   "Action": [ "sqs:ReceiveMessage", "sqs:GetQueueUrl","sqs:ChangeMessageVisibility", "sqs:DeleteMessage" ],
                   "Resource" : { "Fn::GetAtt" : ["DownloadQueue","Arn"]}
-                },
+                }
+            ]
+        }
+      },
+      "DependsOn": "DownloadQueue"
+    },
+    "WriteDownloadTopic": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : "WriteDownloadTopic",
+        "PolicyDocument" : {
+            "Id" : "WriteDownloadTopic",
+            "Version": "2012-10-17",
+            "Statement": [
                 {
-                  "Sid": "ConsumeDownloadQueueSNS",
+                  "Sid": "WriteDownloadTopicSNS",
                   "Effect": "Allow",
                   "Action": "sns:Publish",
                   "Resource" : { "Ref" : "DownloadTopic" }
@@ -258,7 +275,7 @@
             ]
         }
       },
-      "DependsOn": "DownloadQueue"
+      "DependsOn": "DownloadTopic"
     },
     "UploadsSource" : {
       "Type": "AWS::IAM::ManagedPolicy",
@@ -279,6 +296,15 @@
             }
           ]
         }
+      }
+    },
+    "LambdaDownloadFileInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName" : { "Fn::GetAtt" : ["downloadFile", "Arn"] },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "sns.amazonaws.com",
+        "SourceArn": { "Ref" : "DownloadTopic" }
       }
     }
   },
