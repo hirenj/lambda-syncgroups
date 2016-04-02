@@ -53,11 +53,12 @@ exports.downloadEverything = function downloadEverything(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }
+  var group = context.groupid;
 
   var queue = new Queue(download_queue);
 
-  google.getFiles("group-email@domain.com").then(function(files) {
-    files = files.splice(0,3);
+  google.getFiles(group).then(function(files) {
+    files = files.splice(0,1);
     return Promise.all(files.map(function(file) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     }));
