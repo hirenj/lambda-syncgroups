@@ -30,7 +30,7 @@ module.exports = function(grunt) {
 				package: 'syncgroups',
 				options: {
 					file_name: 'index.js',
-					handler: 'populateGroupGrants',
+					handler: 'index.populateGroupGrants',
 				},
 				function: config.functions['populateGroupGrants'] || 'populateGroupGrants',
 				arn: null,
