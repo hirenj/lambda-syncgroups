@@ -4,6 +4,9 @@ var sqs = new AWS.SQS({region:'us-east-1'});
 require('es6-promise').polyfill();
 
 var sqs_get_queue = function(queue) {
+  if (queue.match(/^https/)) {
+    return Promise.resolve(queue);
+  }
   return new Promise(function(resolve,reject) {
     sqs.getQueueUrl({'QueueName' : queue },function(err,result) {
       if (err) {
