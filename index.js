@@ -10,6 +10,16 @@ var grants_table = 'grants';
 var download_topic = 'download';
 var download_queue = 'DownloadQueue';
 
+try {
+    fs.accessSync('resources.conf.json', fs.F_OK);
+    var config = require('./resources.conf.json');
+    grants_table = config.tables.grants;
+    download_topic = config.queue.download;
+    download_queue = config.queue.DownloadQueue;
+} catch (e) {
+}
+
+
 Promise.anyFailed = function(arrayOfPromises) {
   // For each promise that resolves or rejects,
   // make them all resolve.

@@ -7,6 +7,13 @@ module.exports = function(grunt) {
 	require('load-grunt-tasks')(grunt);
 
 	var path = require('path');
+
+	var config = {'functions' : {} };
+	try {
+		config = require('./resources.conf.json');
+	} catch (e) {
+	}
+
 	grunt.initConfig({
 		lambda_invoke: {
 			default: {
@@ -25,7 +32,7 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'populateGroupGrants',
 				},
-				function: "populateGroupGrants",
+				function: config.functions['populateGroupGrants'] || 'populateGroupGrants',
 				arn: null,
 			},
 			downloadFile: {
@@ -34,7 +41,25 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'index.downloadFile',
 				},
-				function: 'downloadFile',
+				function: config.functions['downloadFile'] || 'downloadFile',
+				arn: null,
+			},
+			downloadFiles: {
+				package: 'syncgroups',
+				options: {
+					file_name: 'index.js',
+					handler: 'index.downloadFiles',
+				},
+				function: config.functions['downloadFiles'] || 'downloadFiles',
+				arn: null,
+			},
+			downloadEverything: {
+				package: 'syncgroups',
+				options: {
+					file_name: 'index.js',
+					handler: 'index.downloadEverything',
+				},
+				function: config.functions['downloadEverything'] || 'downloadEverything',
 				arn: null,
 			}
 		},
@@ -43,6 +68,12 @@ module.exports = function(grunt) {
 				package: 'syncgroups',
 			},
 			downloadFile: {
+				package: 'syncgroups',
+			},
+			downloadFiles: {
+				package: 'syncgroups',
+			},
+			downloadEverything: {
 				package: 'syncgroups',
 			}
 		},
