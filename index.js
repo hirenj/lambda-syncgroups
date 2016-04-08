@@ -11,7 +11,6 @@ var download_topic = 'download';
 var download_queue = 'DownloadQueue';
 
 try {
-    fs.accessSync('resources.conf.json', fs.F_OK);
     var config = require('./resources.conf.json');
     grants_table = config.tables.grants;
     download_topic = config.queue.download;
