@@ -4,12 +4,14 @@ var fs = require('fs');
 var get_service_auth = function get_service_auth(secret,scopes) {
   return new Promise(function(resolve) {
     secret = JSON.parse(secret);
-    var authClient = new google.auth.JWT(secret.client_email,null,secret.private_key,scopes,secret.delegate);
-    authClient.authorize(function(err,tokens) {
+    var authClient = new google.auth.OAuth2(secret.installed.client_id,secret.installed.client_secret,'urn:ietf:wg:oauth:2.0:oob');
+    authClient.setCredentials({
+      refresh_token: secret.installed.refresh_token
+    });
+    authClient.refreshAccessToken(function(err,tokens) {
       if (err) {
         throw err;
       }
-      authClient.delegate = secret.delegate;
       resolve(authClient);
     });
   });
@@ -155,6 +157,8 @@ var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
 var getGroups = function getGroups() {
   var scopes = ["https://www.googleapis.com/auth/admin.directory.group.readonly","https://www.googleapis.com/auth/admin.directory.group.member.readonly"];
   return getServiceAuth(scopes).then(function(auth) {
+    // We need to get the user info here
+    throw new Error("Auth.delegate doesnt exist");
     return google_get_user_groups(auth,auth.delegate);
   }).then(function(groups) {
     return getServiceAuth(scopes).then(function(auth) {

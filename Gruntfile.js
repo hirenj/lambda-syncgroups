@@ -85,6 +85,23 @@ module.exports = function(grunt) {
 
 	});
 
+	grunt.registerTask('authorise','Populate authorisation',function() {
+		var done = this.async();
+		var google = require('googleapis');
+		var fs = require('fs');
+		var secret = JSON.parse(fs.readFileSync('creds.json','utf8'));
+	    var authClient = new google.auth.OAuth2(secret.installed.client_id,secret.installed.client_secret,'urn:ietf:wg:oauth:2.0:oob');
+	    var url = authClient.generateAuthUrl({
+		  access_type: 'offline',
+		  scope: ["https://www.googleapis.com/auth/admin.directory.group.readonly","https://www.googleapis.com/auth/admin.directory.group.member.readonly","https://www.googleapis.com/auth/drive.readonly"]
+		});
+		console.log(url);
+		var readlineSync = require('readline-sync');
+		var refresh = readlineSync.question('Enter refresh token :');
+		secret.installed.refresh_token = refresh;
+		fs.writeFileSync('creds.json',JSON.stringify( secret ));
+	});
+
 	grunt.registerTask('encrypt-secrets-local','Encrypt secrets',function() {
 		var kmish = require('./lib/kmish');
 		var fs = require('fs');

@@ -64,7 +64,7 @@ var make_items = function(groupdata) {
 	item.valid_from = {N:'0'};
 	item.users = {SS:groupdata.members.map(function(user) { return user.id; })};
 	item.grantee = {S:'system'};
-	item.proteins = {S:'any'};
+	item.proteins = {S:'*'};
 	item.datasets = {S:grouptype+groupid+'/*'};
 	return {'PutRequest' : { 'Item': item } };
 };
