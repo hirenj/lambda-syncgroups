@@ -102,7 +102,7 @@ module.exports = function(grunt) {
 		});
 		console.log(url);
 		var readlineSync = require('readline-sync');
-		var authtoken = readlineSync.question('Enter refresh token :');
+		var authtoken = readlineSync.question('Enter authorisation token:');
 		authClient.getToken(authtoken, function(err, tokens) {
 			secret.installed.refresh_token = tokens.refresh_token;
 			fs.writeFileSync('creds.json',JSON.stringify( secret ));
