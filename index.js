@@ -62,7 +62,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }
-  var group = context.groupid;
+  var group = event.groupid;
 
   var queue = new Queue(download_queue);
 
@@ -184,7 +184,7 @@ exports.subscribeNotifications = function subscribeNotifications(event,context) 
 //   - DynamoDb grants table put items
 exports.populateGroupGrants = function populateGroupGrants(event,context) {
   console.log("Lambda syncGappsGroups execution");
-  if (context.awsRequestId == 'LAMBDA_INVOKE') {
+  if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }
   google.getGroups().then(function(grants) {

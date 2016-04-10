@@ -139,6 +139,20 @@ var google_get_file_if_needed_local = function(auth,file) {
   });
 };
 
+var google_get_me_email = function(auth) {
+  var service = google.oauth2('v2');
+  return new Promise(function(resolve,reject) {
+    service.userinfo.get({'auth' : auth },function(err,result) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      auth.delegate = result.id;
+      resolve(auth);
+    });
+  });
+};
+
 var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
 
@@ -157,8 +171,8 @@ var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
 var getGroups = function getGroups() {
   var scopes = ["https://www.googleapis.com/auth/admin.directory.group.readonly","https://www.googleapis.com/auth/admin.directory.group.member.readonly"];
   return getServiceAuth(scopes).then(function(auth) {
-    // We need to get the user info here
-    throw new Error("Auth.delegate doesnt exist");
+    return google_get_me_email(auth);
+  }).then(function(auth) {
     return google_get_user_groups(auth,auth.delegate);
   }).then(function(groups) {
     return getServiceAuth(scopes).then(function(auth) {
