@@ -26,7 +26,7 @@ module.exports = function(grunt) {
 			},
 		},
 		lambda_deploy: {
-			default: {
+			populateGroupGrants: {
 				package: 'syncgroups',
 				options: {
 					file_name: 'index.js',
@@ -64,7 +64,7 @@ module.exports = function(grunt) {
 			}
 		},
 		lambda_package: {
-			default: {
+			populateGroupGrants: {
 				package: 'syncgroups',
 			},
 			downloadFile: {
@@ -160,6 +160,7 @@ module.exports = function(grunt) {
 			fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'CiphertextBlob' : encrypted } ));
 		});
 	});
+	grunt.registerTask('deploy:populateGroupGrants', ['env:prod', 'lambda_package:populateGroupGrants', 'lambda_deploy:populateGroupGrants']);
 	grunt.registerTask('deploy:downloadFile', ['env:prod', 'lambda_package:downloadFile', 'lambda_deploy:downloadFile']);
 	grunt.registerTask('deploy', ['env:prod', 'lambda_package', 'lambda_deploy']);
 	grunt.registerTask('test', ['lambda_invoke']);

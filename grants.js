@@ -6,6 +6,7 @@ require('es6-promise').polyfill();
 var table_promises = {};
 
 var get_table = function(table) {
+	return Promise.resolve(table);
 	if (table_promises[table]) {
 		return table_promises[table];
 	}

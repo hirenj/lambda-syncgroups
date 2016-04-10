@@ -207,7 +207,6 @@
       "Properties" : {
         "Description" : "DecryptKeys",
         "PolicyDocument" : {
-            "Id" : "DecryptKeys",
             "Version": "2012-10-17",
             "Statement": [
                 {
@@ -225,7 +224,6 @@
       "Properties" : {
         "Description" : "WriteDownloadQueue",
         "PolicyDocument" : {
-            "Id" : "WriteDownloadQueue",
             "Version": "2012-10-17",
             "Statement": [
                 {
