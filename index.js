@@ -13,7 +13,7 @@ var download_queue = 'DownloadQueue';
 try {
     var config = require('./resources.conf.json');
     grants_table = config.tables.grants;
-    download_topic = config.queue.download;
+    download_topic = config.queue.DownloadTopic;
     download_queue = config.queue.DownloadQueue;
 } catch (e) {
 }
@@ -110,7 +110,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
     }
     return queue.shift(count);
   }).then(function(messages) {
-    messages.forEach(function(message) {
+    return Promise.all(messages.map(function(message) {
       var file = JSON.parse(message.Body);
       console.log(file.id);
       var sns_message = JSON.stringify({
@@ -122,7 +122,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
         'queueId' : message.ReceiptHandle
       });
       var sns_params = { 'topic': download_topic, 'Message' : sns_message };
-      require('./lib/snish').publish(sns_params).then(function() {
+      return require('./lib/snish').publish(sns_params).then(function() {
         console.log("Triggered download");
       }).catch(function(err) {
         console.log("Didnt trigger download");
@@ -130,11 +130,13 @@ exports.downloadFiles = function downloadFiles(event,context) {
         console.error(err.stack);
         message.unshift();
       });
-    });
+    }));
   }).catch(function(err) {
     console.error(err);
     console.error(err.stack);
     message.unshift();
+  }).then(function() {
+    context.succeed('Ran downloadFiles');
   });
 };
 
