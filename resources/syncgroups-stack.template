@@ -219,26 +219,6 @@
         }
       }
     },
-    "DownloadQueuePolicy" : {
-      "Type" : "AWS::SQS::QueuePolicy",
-      "Properties" : {
-        "PolicyDocument" : {
-           "Version" : "2012-10-17",
-           "Statement" : [ {
-              "Sid" : "Allow-All",
-              "Effect" : "Allow",
-              "Principal" : {
-                 "AWS" : { "Ref" : "AWS::AccountId" }
-              },
-              "Action" : "sqs:*",
-              "Resource" : { "Fn::GetAtt" : ["DownloadQueue","Arn"]}
-           } ]
-        },
-        "Queues" : [
-           { "Ref" : "DownloadQueue" }
-        ]
-      }
-    },
     "WriteDownloadQueue": {
       "Type": "AWS::IAM::ManagedPolicy",
       "Properties" : {
@@ -268,7 +248,7 @@
                 {
                   "Sid": "ConsumeDownloadQueueSQS",
                   "Effect": "Allow",
-                  "Action": [ "sqs:ReceiveMessage", "sqs:GetQueueUrl","sqs:ChangeMessageVisibility", "sqs:DeleteMessage" ],
+                  "Action": [ "sqs:ReceiveMessage", "sqs:GetQueueUrl","sqs:ChangeMessageVisibility", "sqs:DeleteMessage", "sqs:GetQueueAttributes" ],
                   "Resource" : { "Fn::GetAtt" : ["DownloadQueue","Arn"]}
                 }
             ]
