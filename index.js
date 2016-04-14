@@ -167,6 +167,28 @@ exports.downloadFile = function downloadFile(event,context) {
 
 };
 
+exports.subscribeWebhook = function(event,context) {
+/*
+Bootstrap the watching by passing the baseUrl to the function
+Add a feature variable somewhere that we can pause the
+re-subscription with
+
+POST https://www.googleapis.com/drive/v2/changes/watch
+{
+  "id": "generated id", // Your channel ID.
+  "type": "web_hook",
+  "address": "https://mydomain.com/notifications" // event.baseUrl +'/hook'
+}
+*/
+/*
+var cloudwatchevents = new AWS.CloudWatchEvents();
+// Also add Input to target, pass along event.baseUrl
+Cloudformation permission for lambda
+Create CloudWatch events Rule with name "GoogleWebhookWatcher", schedule expression 'rate(5 mins)'
+Create CloudWatch events target, using rule GoogleWebhookWatcher, and target ARN (context.invokedFunctionArn)
+*/
+};
+
 // Subscribe the lambda functions to the appropriate sns topics
 exports.subscribeNotifications = function subscribeNotifications(event,context) {
   var snish = require('./lib/snish');
