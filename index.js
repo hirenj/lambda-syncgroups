@@ -168,25 +168,48 @@ exports.downloadFile = function downloadFile(event,context) {
 };
 
 exports.subscribeWebhook = function(event,context) {
+  console.log(event);
 /*
 Bootstrap the watching by passing the baseUrl to the function
 Add a feature variable somewhere that we can pause the
 re-subscription with
-
-POST https://www.googleapis.com/drive/v2/changes/watch
-{
-  "id": "generated id", // Your channel ID.
-  "type": "web_hook",
-  "address": "https://mydomain.com/notifications" // event.baseUrl +'/hook'
-}
 */
-/*
-var cloudwatchevents = new AWS.CloudWatchEvents();
-// Also add Input to target, pass along event.baseUrl
-Cloudformation permission for lambda
-Create CloudWatch events Rule with name "GoogleWebhookWatcher", schedule expression 'rate(5 mins)'
-Create CloudWatch events target, using rule GoogleWebhookWatcher, and target ARN (context.invokedFunctionArn)
-*/
+  var AWS = require('aws-sdk');
+  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
+  if ( ! event.base_url) {
+    context.succeed('Done');
+  }
+  var removed_last_hook = Promise.resolve(true);
+  if (event.last_hook) {
+    event.last_hook.address = event.base_url+'/hook';
+    removed_last_hook = google.removeHook(event.last_hook);
+  }
+  removed_last_hook.then(function() {
+    return google.registerHook(event.base_url+'/hook');
+  }).then(function(hook) {
+    if ( ! event.base_url ) {
+      return context.succeed('Done');
+    }
+    var last_hook = hook;
+    //Re-register every 60 minutes
+    cloudevents.putRule({Name:'GoogleWebhookWatcher',ScheduleExpression: 'rate(60 minutes)'}, function(err, data) {
+      if (err) {
+        context.fail(err);
+        return;
+      }
+      cloudevents.putTargets({Rule:'GoogleWebhookWatcher',Targets:[{ Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify({ 'base_url' : event.base_url, 'last_hook' : last_hook }) }]},function(err,data) {
+        if (err) {
+          console.log(err,err.stack);
+          context.fail(err);
+          return;
+        }
+        context.succeed('Done');
+      });
+    });
+  }).catch(function(err) {
+    console.error(err,err.stack);
+    context.succeed('Done');
+  });
 };
 
 // Subscribe the lambda functions to the appropriate sns topics

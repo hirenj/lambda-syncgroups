@@ -63,6 +63,63 @@ var google_get_group_files = function(auth,group) {
   });
 };
 
+var google_register_hook = function(auth,hook_url) {
+  var service = google.drive('v3');
+  return new Promise(function(resolve,reject) {
+    service.changes.getStartPageToken({'auth' : auth},function(err,result) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      var startPageToken = result.startPageToken;
+      service.changes.watch({'auth' : auth,
+      pageToken: startPageToken,      
+      resource: {
+        id: require('uuid').v1(),
+        type: 'web_hook',
+        address: hook_url
+      }},function(err,result) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(result);
+      });
+    });
+  });
+};
+
+var google_remove_hook = function(auth,hook_data) {
+  var service = google.drive('v3');
+
+  return new Promise(function(resolve,reject) {
+    service.channels.stop({'auth' : auth, 
+      resource: {
+        kind: hook_data.kind,
+        id: hook_data.id,
+        resourceId: hook_data.resourceId,
+        resourceUri: hook_data.resourceUri,
+        type: 'web_hook',
+        address: hook_data.address
+      }},function(err,result) {
+        if (err) {
+          console.log("Got an error");
+          console.log(err);
+          console.log(err.code);
+          if (err.code == 404) {
+            console.log("Channel already removed at ",hook_data.id);
+            resolve(result);
+            return;
+          }
+          reject(err);
+          return;
+        }
+        console.log("Successfully removed channel at ",hook_data.id);
+        resolve(result);
+      });
+    });
+};
+
 var google_get_file_if_needed = function(auth,file) {
   return google_get_file_if_needed_s3(auth,file);
 }
@@ -153,6 +210,20 @@ var google_get_me_email = function(auth) {
   });
 };
 
+var registerHook = function registerHook(hook_url) {
+  var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
+  return getServiceAuth(scopes).then(function(auth) {
+    return google_register_hook(auth,hook_url);
+  });  
+};
+
+var removeHook = function removeHook(hook_data) {
+  var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
+  return getServiceAuth(scopes).then(function(auth) {
+    return google_remove_hook(auth,hook_data);
+  });  
+};
+
 var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
 
@@ -206,6 +277,8 @@ var getServiceAuth = function getServiceAuth(scopes) {
   return auth_promise;
 };
 
+exports.registerHook = registerHook;
+exports.removeHook = removeHook;
 exports.downloadFileIfNecessary = downloadFileIfNecessary;
 exports.getFiles = getFiles;
 exports.getServiceAuth = getServiceAuth;

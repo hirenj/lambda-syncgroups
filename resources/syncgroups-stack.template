@@ -46,7 +46,8 @@
         "Roles" : [ { "Ref" : "LambdaPopulateGroupGrantsRole" },
                     { "Ref" : "LambdaDownloadFilesRole" },
                     { "Ref" : "LambdaDownloadFileRole" },
-                    { "Ref" : "LambdaDownloadEverythingRole" }]
+                    { "Ref" : "LambdaDownloadEverythingRole" },
+                    { "Ref" : "LambdaSubscribeWebhookRole" }]
       },
       "DependsOn" : ["LambdaPopulateGroupGrantsRole","LambdaDownloadFilesRole","LambdaDownloadFileRole","LambdaDownloadEverythingRole"]
     },
@@ -126,6 +127,25 @@
       },
       "DependsOn" : [ "DecryptKeys", "WriteDownloadQueue" ]
     },
+    "LambdaSubscribeWebhookRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "RegisterEvents"} ],
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      },
+      "DependsOn" : []
+    },
     "populateGroupGrants" : {
       "Type" : "AWS::Lambda::Function",
       "Properties" : {
@@ -202,6 +222,25 @@
       },
       "DependsOn" : "LambdaDownloadEverythingRole"
     },
+    "subscribeWebhook" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code" : {
+          "ZipFile": { "Fn::Join": ["", [
+            "exports.subscribeWebhook = function(event, context) {",
+            "  context.succeed('OK');",
+            "};"
+          ]]}
+        },
+        "Description" : "subscribeWebhook",
+        "Handler" : "index.subscribeWebhook",
+        "Role" : {"Fn::GetAtt" : ["LambdaSubscribeWebhookRole", "Arn"] },
+        "Runtime" : "nodejs",
+        "MemorySize" : 128,
+        "Timeout" : 20
+      },
+      "DependsOn" : "LambdaSubscribeWebhookRole"
+    },
     "DecryptKeys": {
       "Type": "AWS::IAM::ManagedPolicy",
       "Properties" : {
@@ -214,6 +253,23 @@
                   "Effect": "Allow",
                   "Action": "kms:Decrypt",
                   "Resource" : { "Fn::Join" :  [ "", [ "arn:aws:kms:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId" } ,":alias/default" ] ]}
+                }
+            ]
+        }
+      }
+    },
+    "RegisterEvents": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : "RegisterEvents",
+        "PolicyDocument" : {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                  "Sid": "RegisterEvents",
+                  "Effect": "Allow",
+                  "Action": [ "events:PutRule", "events:PutTargets" ],
+                  "Resource" : "*"
                 }
             ]
         }
@@ -303,6 +359,14 @@
         "Action": "lambda:InvokeFunction",
         "Principal": "sns.amazonaws.com",
         "SourceArn": { "Ref" : "DownloadTopic" }
+      }
+    },
+    "LambdaSubscribeWebhookInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName" : { "Fn::GetAtt" : ["subscribeWebhook", "Arn"] },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com"
       }
     }
   },
