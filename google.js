@@ -83,6 +83,7 @@ var google_register_hook = function(auth,hook_url) {
           reject(err);
           return;
         }
+        result.page_token = startPageToken;
         resolve(result);
       });
     });

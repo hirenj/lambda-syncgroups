@@ -167,6 +167,29 @@ exports.downloadFile = function downloadFile(event,context) {
 
 };
 
+var promisify = function(aws) {
+  aws.Request.prototype.promise = function() {
+    return new Promise(function(accept, reject) {
+      this.on('complete', function(response) {
+        if (response.error) {
+          reject(response.error);
+        } else {
+          accept(response);
+        }
+      });
+      this.send();
+    }.bind(this));
+  };
+};
+
+/*
+  subscribeWebhook -> run again 5 minutes before expiration time for hook
+  change -> set rule to run once 3 minutes from now
+  downloadEverything -> set change_state (i.e. the target for downloadEverything) to current state
+*/
+
+/* This function should manage the timing */
+
 exports.subscribeWebhook = function(event,context) {
   console.log(event);
 /*
@@ -175,40 +198,67 @@ Add a feature variable somewhere that we can pause the
 re-subscription with
 */
   var AWS = require('aws-sdk');
+  promisify(AWS);
   var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
   if ( ! event.base_url) {
     context.succeed('Done');
   }
   var removed_last_hook = Promise.resolve(true);
-  if (event.last_hook) {
+
+  // event.last_hook and event.last_hook.expiration in next 5 minutes, renew hook.
+
+  if (event.last_hook && parseInt(event.last_hook.expiration) >= ((new Date()).getTime() - (5*60*1000)) ) {
     event.last_hook.address = event.base_url+'/hook';
     removed_last_hook = google.removeHook(event.last_hook);
   }
+
   removed_last_hook.then(function() {
     return google.registerHook(event.base_url+'/hook');
   }).then(function(hook) {
     if ( ! event.base_url ) {
-      return context.succeed('Done');
+      return true;
     }
     var last_hook = hook;
-    //Re-register every 60 minutes
-    cloudevents.putRule({Name:'GoogleWebhookWatcher',ScheduleExpression: 'rate(60 minutes)'}, function(err, data) {
-      if (err) {
-        context.fail(err);
-        return;
-      }
-      cloudevents.putTargets({Rule:'GoogleWebhookWatcher',Targets:[{ Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify({ 'base_url' : event.base_url, 'last_hook' : last_hook }) }]},function(err,data) {
-        if (err) {
-          console.log(err,err.stack);
-          context.fail(err);
-          return;
-        }
-        context.succeed('Done');
+
+    var exp_date = new Date(parseInt(last_hook.expiration)-5*60*1000);
+    var cron_string = [ exp_date.getUTCMinutes(),
+                        exp_date.getUTCHours(),
+                        exp_date.getUTCDate(),
+                        exp_date.getUTCMonth()+1,
+                        '?',
+                        exp_date.getUTCFullYear()
+                      ].join(' ');
+
+    var change_state = {
+      'base_url' : event.base_url,
+      'last_hook' : last_hook,
+      'page_token' : last_hook.page_token
+    };
+    var rule_enabled = false;
+
+    return cloudevents.listRules({NamePrefix:'GoogleWebhookWatcher'}).promise().then(function(result) {
+      result.data.Rules.forEach(function(rule) {
+        rule_enabled = rule_enabled || (rule.State !== 'DISABLED');
       });
+    }).then(function() {
+      return cloudevents.putRule({
+        Name:'GoogleWebhookWatcher',
+        ScheduleExpression: 'cron('+cron_string+')',
+        State: rule_enabled ? 'ENABLED' : 'DISABLED'
+      }).promise();
+    }).then(function() {
+      return cloudevents.putTargets({
+        Rule:'GoogleWebhookWatcher',
+        Targets:[
+          { Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify(change_state) }
+        ]
+      }).promise();
     });
-  }).catch(function(err) {
-    console.error(err,err.stack);
+  }).then(function() {
     context.succeed('Done');
+  }).catch(function(err) {
+    console.log(err,err.stack);
+    context.succeed("Done");
   });
 };
 
