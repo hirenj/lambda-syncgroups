@@ -175,6 +175,7 @@ module.exports = function(grunt) {
 	grunt.registerTask('deploy:populateGroupGrants', ['env:prod', 'lambda_package:populateGroupGrants', 'lambda_deploy:populateGroupGrants']);
 	grunt.registerTask('deploy:downloadFile', ['env:prod', 'lambda_package:downloadFile', 'lambda_deploy:downloadFile']);
 	grunt.registerTask('deploy:downloadFiles', ['env:prod', 'lambda_package:downloadFiles', 'lambda_deploy:downloadFiles']);
+	grunt.registerTask('deploy:downloadEverything', ['env:prod', 'lambda_package:downloadEverything', 'lambda_deploy:downloadEverything']);
 	grunt.registerTask('deploy:subscribeWebhook', ['env:prod', 'lambda_package:subscribeWebhook', 'lambda_deploy:subscribeWebhook']);
 	grunt.registerTask('deploy', ['env:prod', 'lambda_package', 'lambda_deploy']);
 	grunt.registerTask('test', ['lambda_invoke']);

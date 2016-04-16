@@ -211,11 +211,72 @@ var google_get_me_email = function(auth) {
   });
 };
 
+var google_populate_file_group = function(auth,files) {
+  var service = google.drive('v3');
+  var promises = files.map(function(fileId) {
+    return new Promise(function(resolve,reject) {
+      service.files.get({'auth' : auth, 'fileId': fileId,'fields':'id,permissions,md5Checksum,name'},function(err,result) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        var groups = result.permissions.filter(function(perm) { return perm.type === 'group'; }).map(function(perm) {
+          return perm.emailAddress;
+        });
+        resolve(groups.map(function(groupid) {
+          return { 'id' : result.id, 'name' : result.name, 'md5Checksum' : result.md5Checksum, 'group' : groupid };
+        }));
+      });
+    });
+  });
+  return Promise.all(promises).then(function(file_details) {
+    return [].concat.apply([], file_details);
+  });
+};
+
+var google_get_changed_files = function(auth,page_token,files) {
+  var service = google.drive('v3');
+  if ( ! files ) {
+    files = [];
+  }
+  return new Promise(function(resolve,reject) {
+    service.changes.list({'auth' : auth, pageToken: page_token },function(err,result) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      var current_files = result.changes.filter(function(file) {
+        return ! file.removed && file.file.name.match(/msdata/);
+      }).map(function(file) {
+        return file.fileId;
+      });
+      if (result.nextPageToken) {
+        resolve(google_get_changed_files(auth,result.nextPageToken,files.concat(current_files)));
+        return;
+      }
+      if (result.newStartPageToken) {
+        console.log("New start page token should be ",result.newStartPageToken);
+        // Update the triggers with the new start page token
+        resolve(files.concat(current_files));
+      }
+    });
+  });
+};
+
+var getChangedFiles = function getChangedFiles(page_token) {
+  var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
+  return getServiceAuth(scopes).then(function(auth) {
+    return google_get_changed_files(auth,page_token).then(function(files) {
+      return google_populate_file_group(auth,files);
+    });
+  });
+};
+
 var registerHook = function registerHook(hook_url) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
   return getServiceAuth(scopes).then(function(auth) {
     return google_register_hook(auth,hook_url);
-  });  
+  });
 };
 
 var removeHook = function removeHook(hook_data) {
@@ -282,5 +343,6 @@ exports.registerHook = registerHook;
 exports.removeHook = removeHook;
 exports.downloadFileIfNecessary = downloadFileIfNecessary;
 exports.getFiles = getFiles;
+exports.getChangedFiles = getChangedFiles;
 exports.getServiceAuth = getServiceAuth;
 exports.getGroups = getGroups;

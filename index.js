@@ -55,24 +55,61 @@ Promise.anyFailed = function(arrayOfPromises) {
     }
   });
 };
+
+var download_files_group = function(group) {
+  return google.getFiles(group);
+};
+
+var download_changed_files = function(page_token) {
+  return google.getChangedFiles(page_token);
+};
+
+exports.acceptWebhook = function acceptWebhook(event,context) {
+  // Skip action on params.header.X-Goog-Resource-State sync
+  // Reschedule rule for 5 minutes from now.
+};
+
 // Permissions: Roles downloadQueueSource / keyDecrypter
 //   - KMS decrypt
 //   - SQS sendMessage
+
+// Needs permission to run from cloudwatch event
 exports.downloadEverything = function downloadEverything(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }
+  console.log("downloadEverything");
+  console.log(event);
+
   var group = event.groupid;
+  var token = event.page_token;
+
+  if ( ! group && ! token ) {
+    context.succeed('Done');
+    return;
+  }
 
   var queue = new Queue(download_queue);
+  var download_promise = Promise.resolve(true);
 
-  google.getFiles(group).then(function(files) {
+  if (group) {
+    download_promise = download_files_group(group);
+  } else if (token) {
+    download_promise = download_changed_files(token);
+  }
+
+  // Push all the shared files into the queue
+  download_promise.then(function(files) {
     files = files.splice(0,1);
     return Promise.all(files.map(function(file) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     }));
+  }).then(function() {
+    context.succeed('Done');
+  }).catch(function(err) {
+    console.error(err,err.stack);
+    context.succeed('Done');
   });
-  // Push all the shared files into the queue
 };
 
 // Every minute
@@ -207,10 +244,13 @@ re-subscription with
 
   // event.last_hook and event.last_hook.expiration in next 5 minutes, renew hook.
 
-  if (event.last_hook && parseInt(event.last_hook.expiration) >= ((new Date()).getTime() - (5*60*1000)) ) {
+  if (event.last_hook && parseInt(event.last_hook.expiration) <= ((new Date()).getTime() + (5*60*1000)) ) {
     event.last_hook.address = event.base_url+'/hook';
     removed_last_hook = google.removeHook(event.last_hook);
   }
+
+  // We should list targets here and extract out the current pageToken
+  // associated with the downloadEverything method
 
   removed_last_hook.then(function() {
     return google.registerHook(event.base_url+'/hook');
