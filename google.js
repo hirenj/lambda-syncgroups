@@ -109,14 +109,14 @@ var google_remove_hook = function(auth,hook_data) {
           console.log(err.code);
           if (err.code == 404) {
             console.log("Channel already removed at ",hook_data.id);
-            resolve(result);
+            resolve(true);
             return;
           }
           reject(err);
           return;
         }
         console.log("Successfully removed channel at ",hook_data.id);
-        resolve(result);
+        resolve(true);
       });
     });
 };
@@ -257,7 +257,7 @@ var google_get_changed_files = function(auth,page_token,files) {
       if (result.newStartPageToken) {
         console.log("New start page token should be ",result.newStartPageToken);
         // Update the triggers with the new start page token
-        resolve(files.concat(current_files));
+        resolve({ files: files.concat(current_files), token: result.newStartPageToken });
       }
     });
   });
@@ -267,7 +267,9 @@ var getChangedFiles = function getChangedFiles(page_token) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
   return getServiceAuth(scopes).then(function(auth) {
     return google_get_changed_files(auth,page_token).then(function(files) {
-      return google_populate_file_group(auth,files);
+      return google_populate_file_group(auth,files.files).then(function(fileinfo) {
+        return {files: fileinfo, token: files.token };
+      });
     });
   });
 };

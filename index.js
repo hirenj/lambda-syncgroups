@@ -15,6 +15,7 @@ try {
     grants_table = config.tables.grants;
     download_topic = config.queue.DownloadTopic;
     download_queue = config.queue.DownloadQueue;
+    downloadEverythingName = config.functions.downloadEverything;
 } catch (e) {
 }
 
@@ -64,6 +65,20 @@ var download_changed_files = function(page_token) {
   return google.getChangedFiles(page_token);
 };
 
+var update_page_token = function(page_token,arn) {
+  console.log("Writing page token ",page_token);
+  var AWS = require('aws-sdk');
+  promisify(AWS);
+  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
+  return cloudevents.putTargets({
+    Rule:'GoogleWebhookWatcher',
+    Targets:[
+      { Arn: arn, Id: "downloadEverything", Input: JSON.stringify({page_token: page_token}) }
+    ]
+  }).promise();
+
+};
+
 exports.acceptWebhook = function acceptWebhook(event,context) {
   // Skip action on params.header.X-Goog-Resource-State sync
   // Reschedule rule for 5 minutes from now.
@@ -95,7 +110,11 @@ exports.downloadEverything = function downloadEverything(event,context) {
   if (group) {
     download_promise = download_files_group(group);
   } else if (token) {
-    download_promise = download_changed_files(token);
+    download_promise = download_changed_files(token).then(function(fileinfos) {
+      return update_page_token(fileinfos.token,context.invokedFunctionArn).then(function() {
+        return fileinfos.files;
+      });
+    });
   }
 
   // Push all the shared files into the queue
@@ -240,19 +259,24 @@ re-subscription with
   if ( ! event.base_url) {
     context.succeed('Done');
   }
-  var removed_last_hook = Promise.resolve(true);
+  var removed_last_hook = Promise.resolve(false);
 
   // event.last_hook and event.last_hook.expiration in next 5 minutes, renew hook.
 
   if (event.last_hook && parseInt(event.last_hook.expiration) <= ((new Date()).getTime() + (5*60*1000)) ) {
     event.last_hook.address = event.base_url+'/hook';
     removed_last_hook = google.removeHook(event.last_hook);
+  } else {
+    console.log("No need to renew webhook");
   }
 
   // We should list targets here and extract out the current pageToken
   // associated with the downloadEverything method
 
-  removed_last_hook.then(function() {
+  removed_last_hook.then(function(removed) {
+    if ( ! removed && event.last_hook ) {
+      return Promise.resolve(event.last_hook);
+    }
     return google.registerHook(event.base_url+'/hook');
   }).then(function(hook) {
     if ( ! event.base_url ) {
@@ -287,11 +311,20 @@ re-subscription with
         State: rule_enabled ? 'ENABLED' : 'DISABLED'
       }).promise();
     }).then(function() {
+      // We don't clobber the targets if
+      // this is just a rescheduling
+      if (event.last_hook === hook) {
+        console.log("Skipping target setting as we are simply rescheduling");
+        return Promise.resolve(true);
+      }
+
+      var targets = [
+          { Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify(change_state) },
+          { Arn: context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadEverythingName, Id: "downloadEverything", Input: JSON.stringify({'page_token' : change_state.page_token })}
+      ];
       return cloudevents.putTargets({
         Rule:'GoogleWebhookWatcher',
-        Targets:[
-          { Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify(change_state) }
-        ]
+        Targets: targets
       }).promise();
     });
   }).then(function() {

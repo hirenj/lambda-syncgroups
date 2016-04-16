@@ -111,7 +111,7 @@
     "LambdaDownloadEverythingRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}, {"Ref" : "RegisterEvents"}],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
