@@ -71,7 +71,7 @@ var update_page_token = function(page_token,arn) {
   promisify(AWS);
   var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
   return cloudevents.putTargets({
-    Rule:'GoogleWebhookWatcher',
+    Rule:'GoogleDownloadFiles',
     Targets:[
       { Arn: arn, Id: "downloadEverything", Input: JSON.stringify({page_token: page_token}) }
     ]
@@ -80,8 +80,53 @@ var update_page_token = function(page_token,arn) {
 };
 
 exports.acceptWebhook = function acceptWebhook(event,context) {
-  // Skip action on params.header.X-Goog-Resource-State sync
-  // Reschedule rule for 5 minutes from now.
+  var AWS = require('aws-sdk');
+  promisify(AWS);
+  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
+  var exp_date = new Date(new Date().getTime() + 2*60*1000);
+  var cron_string = [ exp_date.getUTCMinutes(),
+                      exp_date.getUTCHours(),
+                      exp_date.getUTCDate(),
+                      exp_date.getUTCMonth()+1,
+                      '?',
+                      exp_date.getUTCFullYear()
+                    ].join(' ');
+
+  var new_rule = false;
+  var rule_enabled = false;
+
+  cloudevents.listRules({NamePrefix:'GoogleDownloadFiles'}).promise().then(function(result) {
+    if (result.data.Rules.length == 0) {
+      new_rule = true;
+    }
+    result.data.Rules.forEach(function(rule) {
+      rule_enabled = rule_enabled || (rule.State !== 'DISABLED');
+    });
+  }).then(function() {
+    return cloudevents.putRule({
+      Name:'GoogleDownloadFiles',
+      ScheduleExpression: 'cron('+cron_string+')',
+      State: rule_enabled ? 'ENABLED' : 'DISABLED'
+    }).promise();
+  }).then(function() {
+    if (! new_rule) {
+      return;
+    }
+    var targets = [
+      { Arn: context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadEverythingName,
+        Id: "downloadEverything",
+        Input: JSON.stringify({'page_token' : 'none' })
+      }
+    ];
+    return cloudevents.putTargets({
+      Rule:'GoogleDownloadFiles',
+      Targets: targets
+    }).promise();
+  }).catch(function(err) {
+    console.error(err,err.stack);
+  }).then(function() {
+    context.succeed('Done');
+  });
 };
 
 // Permissions: Roles downloadQueueSource / keyDecrypter
@@ -120,6 +165,9 @@ exports.downloadEverything = function downloadEverything(event,context) {
   // Push all the shared files into the queue
   download_promise.then(function(files) {
     files = files.splice(0,1);
+
+    // We should increase the frequency the download daemon runs here
+
     return Promise.all(files.map(function(file) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     }));
@@ -143,6 +191,10 @@ exports.downloadFiles = function downloadFiles(event,context) {
     require('./secrets').use_kms = false;
   }
 
+  var AWS = require('aws-sdk');
+  promisify(AWS);
+  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
+
   var auth_data = null;
 
   var have_auth = google.getServiceAuth(["https://www.googleapis.com/auth/drive.readonly"]).then(function(auth) {
@@ -150,8 +202,11 @@ exports.downloadFiles = function downloadFiles(event,context) {
   });
 
   var queue = new Queue(download_queue);
-  var active = queue.getActiveMessages().then(function(active) {
-    var diff = 5 - active;
+  var total_messages = -1;
+  var active = queue.getActiveMessages().then(function(counts) {
+    var active_count = counts[0];
+    total_messages = counts[1];
+    var diff = 5 - active_count;
     if (diff < 0) {
       return 0;
     } else {
@@ -164,7 +219,21 @@ exports.downloadFiles = function downloadFiles(event,context) {
     if (count < 1) {
       throw new Error('Already maximum number of active downloads')
     }
-    return queue.shift(count);
+    var next_promise = Promise.resolve(true);
+    if (total_messages < 1) {
+      throw new Error('No messages');
+    } else {
+      var targets = [
+          { Arn: context.invokedFunctionArn, Id: "DownloadFilesDaemon", Input: JSON.stringify({'no_messages':0}) }
+      ];
+      next_promise = cloudevents.putTargets({
+        Rule:'DownloadFilesDaemon',
+        Targets: targets
+      }).promise();
+    }
+    return next_promise.then(function() {
+      return queue.shift(count);
+    });
   }).then(function(messages) {
     return Promise.all(messages.map(function(message) {
       var file = JSON.parse(message.Body);
@@ -188,9 +257,36 @@ exports.downloadFiles = function downloadFiles(event,context) {
       });
     }));
   }).catch(function(err) {
-    console.error(err);
-    console.error(err.stack);
-    message.unshift();
+    if (err.message === 'No messages') {
+      console.log("No messages");
+      var rule_enabled = false;
+      if (event.no_messages >= 5) {
+        console.log("Disabling downloadFiles daemon");
+        return cloudevents.listRules({NamePrefix:'DownloadFilesDaemon'}).promise().then(function(result) {
+          result.data.Rules.forEach(function(rule) {
+            rule_enabled = rule_enabled || (rule.State !== 'DISABLED');
+          });
+        }).then(function() {
+          return cloudevents.putRule({
+            Name:'DownloadFilesDaemon',
+            ScheduleExpression: 'rate(1 hour)',
+            State: rule_enabled ? 'ENABLED' : 'DISABLED'
+          }).promise();
+        });
+      } else {
+        console.log("Incrementing no messages counter to ",(event.no_messages || 0) + 1);
+        var targets = [
+          { Arn: context.invokedFunctionArn, Id: "DownloadFilesDaemon", Input: JSON.stringify({'no_messages':(event.no_messages || 0) + 1}) }
+        ];
+        return cloudevents.putTargets({
+          Rule:'DownloadFilesDaemon',
+          Targets: targets
+        }).promise();
+      }
+    } else {
+      console.error(err);
+      console.error(err.stack);
+    }
   }).then(function() {
     context.succeed('Ran downloadFiles');
   });
@@ -243,8 +339,6 @@ var promisify = function(aws) {
   change -> set rule to run once 3 minutes from now
   downloadEverything -> set change_state (i.e. the target for downloadEverything) to current state
 */
-
-/* This function should manage the timing */
 
 exports.subscribeWebhook = function(event,context) {
   console.log(event);
@@ -319,8 +413,7 @@ re-subscription with
       }
 
       var targets = [
-          { Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify(change_state) },
-          { Arn: context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadEverythingName, Id: "downloadEverything", Input: JSON.stringify({'page_token' : change_state.page_token })}
+          { Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify(change_state) }
       ];
       return cloudevents.putTargets({
         Rule:'GoogleWebhookWatcher',

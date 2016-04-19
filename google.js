@@ -63,7 +63,7 @@ var google_get_group_files = function(auth,group) {
   });
 };
 
-var google_register_hook = function(auth,hook_url) {
+var google_get_start_token = function(auth) {
   var service = google.drive('v3');
   return new Promise(function(resolve,reject) {
     service.changes.getStartPageToken({'auth' : auth},function(err,result) {
@@ -72,21 +72,34 @@ var google_register_hook = function(auth,hook_url) {
         return;
       }
       var startPageToken = result.startPageToken;
-      service.changes.watch({'auth' : auth,
-      pageToken: startPageToken,      
-      resource: {
-        id: require('uuid').v1(),
-        type: 'web_hook',
-        address: hook_url
-      }},function(err,result) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        result.page_token = startPageToken;
-        resolve(result);
-      });
+      resolve(startPageToken);
     });
+  });
+};
+
+var google_request_hook = function(auth,hook_url,token) {
+  var service = google.drive('v3');
+  return new Promise(function(resolve,reject) {
+    service.changes.watch({'auth' : auth,
+    pageToken: token,
+    resource: {
+      id: require('uuid').v1(),
+      type: 'web_hook',
+      address: hook_url
+    }},function(err,result) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      result.page_token = token;
+      resolve(result);
+    });
+  });
+};
+
+var google_register_hook = function(auth,hook_url) {
+  return google_get_start_token(auth).then(function(startPageToken) {
+    return google_request_hook(auth,hook_url,startPageToken);
   });
 };
 
@@ -238,6 +251,11 @@ var google_get_changed_files = function(auth,page_token,files) {
   var service = google.drive('v3');
   if ( ! files ) {
     files = [];
+  }
+  if (page_token == 'none') {
+    return google_get_start_token(auth).then(function(token) {
+      return google_get_changed_files(auth,token,files);
+    });
   }
   return new Promise(function(resolve,reject) {
     service.changes.list({'auth' : auth, pageToken: page_token },function(err,result) {

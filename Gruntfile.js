@@ -70,7 +70,16 @@ module.exports = function(grunt) {
 				},
 				function: config.functions['subscribeWebhook'] || 'subscribeWebhook',
 				arn: null,
-			}
+			},
+			acceptWebhook: {
+				package: 'syncgroups',
+				options: {
+					file_name: 'index.js',
+					handler: 'index.acceptWebhook',
+				},
+				function: config.functions['acceptWebhook'] || 'acceptWebhook',
+				arn: null,
+			},
 		},
 		lambda_package: {
 			populateGroupGrants: {
@@ -86,6 +95,9 @@ module.exports = function(grunt) {
 				package: 'syncgroups',
 			},
 			subscribeWebhook: {
+				package: 'syncgroups',
+			},
+			acceptWebhook: {
 				package: 'syncgroups',
 			}
 		},
@@ -177,6 +189,7 @@ module.exports = function(grunt) {
 	grunt.registerTask('deploy:downloadFiles', ['env:prod', 'lambda_package:downloadFiles', 'lambda_deploy:downloadFiles']);
 	grunt.registerTask('deploy:downloadEverything', ['env:prod', 'lambda_package:downloadEverything', 'lambda_deploy:downloadEverything']);
 	grunt.registerTask('deploy:subscribeWebhook', ['env:prod', 'lambda_package:subscribeWebhook', 'lambda_deploy:subscribeWebhook']);
+	grunt.registerTask('deploy:acceptWebhook', ['env:prod', 'lambda_package:acceptWebhook', 'lambda_deploy:acceptWebhook']);
 	grunt.registerTask('deploy', ['env:prod', 'lambda_package', 'lambda_deploy']);
 	grunt.registerTask('test', ['lambda_invoke']);
 };

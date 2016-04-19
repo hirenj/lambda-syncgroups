@@ -46,14 +46,14 @@ var sqs_send_message = function(queueUrl, message) {
 
 var sqs_get_active_messages = function(queueUrl) {
   var params = {'QueueUrl' : queueUrl,
-                'AttributeNames' : ['ApproximateNumberOfMessagesNotVisible']
+                'AttributeNames' : ['ApproximateNumberOfMessagesNotVisible','ApproximateNumberOfMessages']
               };
   return new Promise(function(resolve,reject) {
     sqs.getQueueAttributes(params,function(err,data) {
       if (err) {
         throw err;
       }
-      resolve(parseInt(data.Attributes['ApproximateNumberOfMessagesNotVisible']));
+      resolve([ parseInt(data.Attributes['ApproximateNumberOfMessagesNotVisible']), parseInt(data.Attributes['ApproximateNumberOfMessages']) ] );
     });
   });
 };
