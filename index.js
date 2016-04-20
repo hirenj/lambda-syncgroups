@@ -16,6 +16,7 @@ try {
     download_topic = config.queue.DownloadTopic;
     download_queue = config.queue.DownloadQueue;
     downloadEverythingName = config.functions.downloadEverything;
+    downloadFilesName = config.functions.downloadFiles;
 } catch (e) {
 }
 
@@ -67,61 +68,16 @@ var download_changed_files = function(page_token) {
 
 var update_page_token = function(page_token,arn) {
   console.log("Writing page token ",page_token);
-  var AWS = require('aws-sdk');
-  promisify(AWS);
-  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
-  return cloudevents.putTargets({
-    Rule:'GoogleDownloadFiles',
-    Targets:[
-      { Arn: arn, Id: "downloadEverything", Input: JSON.stringify({page_token: page_token}) }
-    ]
-  }).promise();
-
+  return ;
 };
 
 exports.acceptWebhook = function acceptWebhook(event,context) {
-  var AWS = require('aws-sdk');
-  promisify(AWS);
-  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
   var exp_date = new Date(new Date().getTime() + 2*60*1000);
-  var cron_string = [ exp_date.getUTCMinutes(),
-                      exp_date.getUTCHours(),
-                      exp_date.getUTCDate(),
-                      exp_date.getUTCMonth()+1,
-                      '?',
-                      exp_date.getUTCFullYear()
-                    ].join(' ');
-
-  var new_rule = false;
-  var rule_enabled = false;
-
-  cloudevents.listRules({NamePrefix:'GoogleDownloadFiles'}).promise().then(function(result) {
-    if (result.data.Rules.length == 0) {
-      new_rule = true;
-    }
-    result.data.Rules.forEach(function(rule) {
-      rule_enabled = rule_enabled || (rule.State !== 'DISABLED');
-    });
-  }).then(function() {
-    return cloudevents.putRule({
-      Name:'GoogleDownloadFiles',
-      ScheduleExpression: 'cron('+cron_string+')',
-      State: rule_enabled ? 'ENABLED' : 'DISABLED'
-    }).promise();
-  }).then(function() {
+  require('./events').setTimeout('GoogleDownloadFiles',exp_date).then(function(new_rule) {
     if (! new_rule) {
       return;
     }
-    var targets = [
-      { Arn: context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadEverythingName,
-        Id: "downloadEverything",
-        Input: JSON.stringify({'page_token' : 'none' })
-      }
-    ];
-    return cloudevents.putTargets({
-      Rule:'GoogleDownloadFiles',
-      Targets: targets
-    }).promise();
+    return require('./events').subscribe('GoogleDownloadFiles',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadEverythingName,{'page_token' : 'none'});
   }).catch(function(err) {
     console.error(err,err.stack);
   }).then(function() {
@@ -156,7 +112,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
     download_promise = download_files_group(group);
   } else if (token) {
     download_promise = download_changed_files(token).then(function(fileinfos) {
-      return update_page_token(fileinfos.token,context.invokedFunctionArn).then(function() {
+      return require('./events').subscribe("GoogleDownloadFiles",context.invokedFunctionArn,{page_token:fileinfos.token}).then(function() {
         return fileinfos.files;
       });
     });
@@ -170,7 +126,13 @@ exports.downloadEverything = function downloadEverything(event,context) {
 
     return Promise.all(files.map(function(file) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
-    }));
+    })).then(function() {
+      require('./events').setInterval('DownloadFilesDaemon','3 minutes').then(function(new_rule) {
+        if (new_rule) {
+          require('./events').subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
+        }
+      });
+    });
   }).then(function() {
     context.succeed('Done');
   }).catch(function(err) {
@@ -190,10 +152,6 @@ exports.downloadFiles = function downloadFiles(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('./secrets').use_kms = false;
   }
-
-  var AWS = require('aws-sdk');
-  promisify(AWS);
-  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
 
   var auth_data = null;
 
@@ -223,13 +181,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
     if (total_messages < 1) {
       throw new Error('No messages');
     } else {
-      var targets = [
-          { Arn: context.invokedFunctionArn, Id: "DownloadFilesDaemon", Input: JSON.stringify({'no_messages':0}) }
-      ];
-      next_promise = cloudevents.putTargets({
-        Rule:'DownloadFilesDaemon',
-        Targets: targets
-      }).promise();
+      next_promise = require('./events').subscribe('DownloadFilesDaemon', context.invokedFunctionArn, {'no_messages': 0 } );
     }
     return next_promise.then(function() {
       return queue.shift(count);
@@ -259,29 +211,12 @@ exports.downloadFiles = function downloadFiles(event,context) {
   }).catch(function(err) {
     if (err.message === 'No messages') {
       console.log("No messages");
-      var rule_enabled = false;
       if (event.no_messages >= 5) {
         console.log("Disabling downloadFiles daemon");
-        return cloudevents.listRules({NamePrefix:'DownloadFilesDaemon'}).promise().then(function(result) {
-          result.data.Rules.forEach(function(rule) {
-            rule_enabled = rule_enabled || (rule.State !== 'DISABLED');
-          });
-        }).then(function() {
-          return cloudevents.putRule({
-            Name:'DownloadFilesDaemon',
-            ScheduleExpression: 'rate(1 hour)',
-            State: rule_enabled ? 'ENABLED' : 'DISABLED'
-          }).promise();
-        });
+        return require('./events').setTimeout('DownloadFilesDaemon',new Date(1000));
       } else {
         console.log("Incrementing no messages counter to ",(event.no_messages || 0) + 1);
-        var targets = [
-          { Arn: context.invokedFunctionArn, Id: "DownloadFilesDaemon", Input: JSON.stringify({'no_messages':(event.no_messages || 0) + 1}) }
-        ];
-        return cloudevents.putTargets({
-          Rule:'DownloadFilesDaemon',
-          Targets: targets
-        }).promise();
+        return require('./events').subscribe('DownloadFilesDaemon',context.invokedFunctionArn,{'no_messages':(event.no_messages || 0) + 1});
       }
     } else {
       console.error(err);
@@ -347,9 +282,7 @@ Bootstrap the watching by passing the baseUrl to the function
 Add a feature variable somewhere that we can pause the
 re-subscription with
 */
-  var AWS = require('aws-sdk');
-  promisify(AWS);
-  var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
+
   if ( ! event.base_url) {
     context.succeed('Done');
   }
@@ -379,46 +312,20 @@ re-subscription with
     var last_hook = hook;
 
     var exp_date = new Date(parseInt(last_hook.expiration)-5*60*1000);
-    var cron_string = [ exp_date.getUTCMinutes(),
-                        exp_date.getUTCHours(),
-                        exp_date.getUTCDate(),
-                        exp_date.getUTCMonth()+1,
-                        '?',
-                        exp_date.getUTCFullYear()
-                      ].join(' ');
 
     var change_state = {
       'base_url' : event.base_url,
       'last_hook' : last_hook,
       'page_token' : last_hook.page_token
     };
-    var rule_enabled = false;
-
-    return cloudevents.listRules({NamePrefix:'GoogleWebhookWatcher'}).promise().then(function(result) {
-      result.data.Rules.forEach(function(rule) {
-        rule_enabled = rule_enabled || (rule.State !== 'DISABLED');
-      });
-    }).then(function() {
-      return cloudevents.putRule({
-        Name:'GoogleWebhookWatcher',
-        ScheduleExpression: 'cron('+cron_string+')',
-        State: rule_enabled ? 'ENABLED' : 'DISABLED'
-      }).promise();
-    }).then(function() {
+    require('./events').setTimeout('GoogleWebhookWatcher',exp_date).then(function() {
       // We don't clobber the targets if
       // this is just a rescheduling
       if (event.last_hook === hook) {
         console.log("Skipping target setting as we are simply rescheduling");
         return Promise.resolve(true);
       }
-
-      var targets = [
-          { Arn: context.invokedFunctionArn, Id: "GoogleWebhookWatcher", Input: JSON.stringify(change_state) }
-      ];
-      return cloudevents.putTargets({
-        Rule:'GoogleWebhookWatcher',
-        Targets: targets
-      }).promise();
+      require('./events').subscribe('GoogleWebhookWatcher',context.invokedFunctionArn,change_state);
     });
   }).then(function() {
     context.succeed('Done');
@@ -452,6 +359,12 @@ exports.populateGroupGrants = function populateGroupGrants(event,context) {
   }
   google.getGroups().then(function(grants) {
     return require('./grants').putGrants(grants_table,grants);
+  }).then(function() {
+    require('./events').setInterval('PopulateGroupGrants','1 hour').then(function(new_rule) {
+      if (new_rule) {
+        require('./events').subscribe('PopulateGroupGrants',context.invokedFunctionArn,{});
+      }
+    });
   }).catch(function(err) {
     console.error(err);
     console.error(err.stack);
