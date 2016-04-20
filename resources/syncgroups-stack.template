@@ -44,12 +44,13 @@
             ]
         },
         "Roles" : [ { "Ref" : "LambdaPopulateGroupGrantsRole" },
+                    { "Ref" : "LambdaAcceptWebhookRole"},
                     { "Ref" : "LambdaDownloadFilesRole" },
                     { "Ref" : "LambdaDownloadFileRole" },
                     { "Ref" : "LambdaDownloadEverythingRole" },
                     { "Ref" : "LambdaSubscribeWebhookRole" }]
       },
-      "DependsOn" : ["LambdaPopulateGroupGrantsRole","LambdaDownloadFilesRole","LambdaDownloadFileRole","LambdaDownloadEverythingRole"]
+      "DependsOn" : ["LambdaPopulateGroupGrantsRole","LambdaDownloadFilesRole","LambdaDownloadFileRole","LambdaDownloadEverythingRole","LambdaAcceptWebhookRole"]
     },
     "LambdaPopulateGroupGrantsRole": {
       "Type": "AWS::IAM::Role",

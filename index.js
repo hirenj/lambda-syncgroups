@@ -289,7 +289,9 @@ re-subscription with
 */
 
   if ( ! event.base_url) {
+    console.log("No base url, returning");
     context.succeed('Done');
+    return;
   }
   var removed_last_hook = Promise.resolve(false);
 
@@ -299,7 +301,7 @@ re-subscription with
     event.last_hook.address = event.base_url+'/hook';
     removed_last_hook = google.removeHook(event.last_hook);
   } else {
-    console.log("No need to renew webhook");
+    console.log("No need to remove and re-init webhook");
   }
 
   // We should list targets here and extract out the current pageToken
@@ -307,10 +309,13 @@ re-subscription with
 
   removed_last_hook.then(function(removed) {
     if ( ! removed && event.last_hook ) {
+      console.log("Not removed, and have a last hook. No need to change events");
       return Promise.resolve(event.last_hook);
     }
+    console.log("Registering hook");
     return google.registerHook(event.base_url+'/hook');
   }).then(function(hook) {
+    console.log("Checking if we want to subscribe");
     if ( ! event.base_url ) {
       return true;
     }
