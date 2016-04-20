@@ -36,10 +36,11 @@ var get_rule_state = function(event) {
 
 exports.subscribe = function subscribe(event,arn,data) {
   var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
+  var id = arn.split(':').reverse()[0];
   return cloudevents.putTargets({
     Rule:event,
     Targets:[
-      { Arn: arn, Id: arn, Input: JSON.stringify(data) }
+      { Arn: arn, Id: id, Input: JSON.stringify(data) }
     ]
   }).promise();
 };
@@ -59,12 +60,12 @@ exports.setInterval = function setInterval(event,rate) {
 
 exports.setTimeout = function setTimeout(event,date) {
   var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
-  var cron_string = [ exp_date.getUTCMinutes(),
-                      exp_date.getUTCHours(),
-                      exp_date.getUTCDate(),
-                      exp_date.getUTCMonth()+1,
+  var cron_string = [ date.getUTCMinutes(),
+                      date.getUTCHours(),
+                      date.getUTCDate(),
+                      date.getUTCMonth()+1,
                       '?',
-                      exp_date.getUTCFullYear()
+                      date.getUTCFullYear()
                     ].join(' ');
 
   return get_rule_state(event).then(function(state) {

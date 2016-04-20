@@ -73,6 +73,9 @@ var update_page_token = function(page_token,arn) {
 
 exports.acceptWebhook = function acceptWebhook(event,context) {
   var exp_date = new Date(new Date().getTime() + 2*60*1000);
+  // We want to use the setTimeout technique here to coalesce
+  // any subsequent calls to the webhook and do a primitive
+  // rate limiting
   require('./events').setTimeout('GoogleDownloadFiles',exp_date).then(function(new_rule) {
     if (! new_rule) {
       return;
@@ -112,6 +115,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
     download_promise = download_files_group(group);
   } else if (token) {
     download_promise = download_changed_files(token).then(function(fileinfos) {
+      // Re-subscribe self using the new page token as the state
       return require('./events').subscribe("GoogleDownloadFiles",context.invokedFunctionArn,{page_token:fileinfos.token}).then(function() {
         return fileinfos.files;
       });
@@ -121,12 +125,13 @@ exports.downloadEverything = function downloadEverything(event,context) {
   // Push all the shared files into the queue
   download_promise.then(function(files) {
     files = files.splice(0,1);
-
+    console.log("Files to download ",files);
     // We should increase the frequency the download daemon runs here
 
     return Promise.all(files.map(function(file) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     })).then(function() {
+      // Register the downloadFiles daemon
       require('./events').setInterval('DownloadFilesDaemon','3 minutes').then(function(new_rule) {
         if (new_rule) {
           require('./events').subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
