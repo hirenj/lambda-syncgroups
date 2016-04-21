@@ -127,16 +127,20 @@ exports.downloadEverything = function downloadEverything(event,context) {
     files = files.splice(0,1);
     console.log("Files to download ",files);
     // We should increase the frequency the download daemon runs here
-
+    if (files.length == 0) {
+      return Promise.resolve(false);
+    }
+    console.log("Queueing files for download");
     return Promise.all(files.map(function(file) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     })).then(function() {
-      // Register the downloadFiles daemon
-      require('./events').setInterval('DownloadFilesDaemon','3 minutes').then(function(new_rule) {
+      // Register the downloadFiles daemon if there are files
+      return require('./events').setInterval('DownloadFilesDaemon','3 minutes').then(function(new_rule) {
         if (new_rule) {
           require('./events').subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
         }
       });
+      return true;
     });
   }).then(function() {
     context.succeed('Done');
@@ -308,6 +312,7 @@ re-subscription with
   // associated with the downloadEverything method
 
   removed_last_hook.then(function(removed) {
+    console.log(removed,event);
     if ( ! removed && event.last_hook ) {
       console.log("Not removed, and have a last hook. No need to change events");
       return Promise.resolve(event.last_hook);
@@ -322,12 +327,13 @@ re-subscription with
     var last_hook = hook;
 
     var exp_date = new Date(parseInt(last_hook.expiration)-5*60*1000);
-
+    console.log("Expiration date for webhook is ",exp_date.toString());
     var change_state = {
       'base_url' : event.base_url,
       'last_hook' : last_hook,
       'page_token' : last_hook.page_token
     };
+    console.log("Re-subscribing");
     require('./events').setTimeout('GoogleWebhookWatcher',exp_date).then(function() {
       // We don't clobber the targets if
       // this is just a rescheduling

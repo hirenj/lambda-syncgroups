@@ -67,7 +67,7 @@ exports.setTimeout = function setTimeout(event,date) {
                       '?',
                       date.getUTCFullYear()
                     ].join(' ');
-
+  console.log(date.toString(),cron_string);
   return get_rule_state(event).then(function(state) {
     return cloudevents.putRule({
       Name:event,
