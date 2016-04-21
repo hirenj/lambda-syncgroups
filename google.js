@@ -309,14 +309,14 @@ var removeHook = function removeHook(hook_data) {
 
 var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
-
   if (file.auth_token && file.auth_token.access_token) {
+    console.log("We have an Auth token, trying to access directly");
     var auth_client = new google.auth.OAuth2();
     auth_client.credentials = file.auth_token;
     delete file.auth_token.refresh_token;
     return google_get_file_if_needed(auth_client,file);
   }
-
+  console.log("We have no auth token, trying to get a fresh auth");
   return getServiceAuth(scopes).then(function(auth) {
     return google_get_file_if_needed(auth,file);
   });
@@ -350,8 +350,9 @@ var getFiles = function getFiles(group) {
 
 var auth_promise;
 
-var getServiceAuth = function getServiceAuth(scopes) {
-  if (auth_promise) {
+var getServiceAuth = function getServiceAuth(scopes,force) {
+  if (auth_promise && ! force) {
+    console.log("Returning cached permissions");
     return auth_promise;
   }
   auth_promise = require('./secrets').getSecret().then(function(secret) {

@@ -164,7 +164,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
 
   var auth_data = null;
 
-  var have_auth = google.getServiceAuth(["https://www.googleapis.com/auth/drive.readonly"]).then(function(auth) {
+  var have_auth = google.getServiceAuth(["https://www.googleapis.com/auth/drive.readonly"],true).then(function(auth) {
     auth_data = auth.credentials;
   });
 
@@ -301,7 +301,7 @@ re-subscription with
 
   // event.last_hook and event.last_hook.expiration in next 5 minutes, renew hook.
 
-  if (event.last_hook && parseInt(event.last_hook.expiration) <= ((new Date()).getTime() + (5*60*1000)) ) {
+  if (event.last_hook && parseInt(event.last_hook.expiration) <= ((new Date()).getTime() + (7*60*1000)) ) {
     event.last_hook.address = event.base_url+'/hook';
     removed_last_hook = google.removeHook(event.last_hook);
   } else {
