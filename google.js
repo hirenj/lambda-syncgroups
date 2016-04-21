@@ -149,6 +149,7 @@ var google_get_file_if_needed_s3 = function(auth,file) {
       Key: 'uploads/'+ 'group-'+ file.groupid + '/' +file.id,
       IfNoneMatch: '"'+file.md5+'"'
     };
+    console.log("Getting file from google",file.id," md5 ",file.md5);
     s3.headObject(params, function(err, data) {
       if (err) {
 
@@ -167,7 +168,7 @@ var google_get_file_if_needed_s3 = function(auth,file) {
           console.log("No file, need to upload");
         }
       }
-
+      console.log("Trying upload to S3");
       var in_stream = service.files.get({
         'auth' : auth,
         'fileId' : file.id ,
