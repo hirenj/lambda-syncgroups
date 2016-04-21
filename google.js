@@ -139,7 +139,7 @@ var google_get_file_if_needed = function(auth,file) {
 }
 
 var google_get_file_if_needed_s3 = function(auth,file) {
-  var service = google.drive('v3');
+  var drive = google.drive('v3');
   var AWS = require('aws-sdk');
   var s3 = new AWS.S3({region:'us-east-1'});
 
@@ -169,7 +169,7 @@ var google_get_file_if_needed_s3 = function(auth,file) {
         }
       }
       console.log("Trying upload to S3");
-      var in_stream = service.files.get({
+      var in_stream = drive.files.get({
         'auth' : auth,
         'fileId' : file.id ,
         'alt' : 'media'

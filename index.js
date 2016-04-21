@@ -334,16 +334,18 @@ re-subscription with
       'page_token' : last_hook.page_token
     };
     console.log("Re-subscribing");
-    require('./events').setTimeout('GoogleWebhookWatcher',exp_date).then(function() {
+    return require('./events').setTimeout('GoogleWebhookWatcher',exp_date).then(function() {
+      console.log("Re-subscribed, next refresh at ",exp_date);
       // We don't clobber the targets if
       // this is just a rescheduling
       if (event.last_hook === hook) {
         console.log("Skipping target setting as we are simply rescheduling");
         return Promise.resolve(true);
       }
-      require('./events').subscribe('GoogleWebhookWatcher',context.invokedFunctionArn,change_state);
+      return require('./events').subscribe('GoogleWebhookWatcher',context.invokedFunctionArn,change_state);
     });
   }).then(function() {
+    console.log("Function complete");
     context.succeed('Done');
   }).catch(function(err) {
     console.log(err,err.stack);
