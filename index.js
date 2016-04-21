@@ -182,7 +182,10 @@ exports.downloadFiles = function downloadFiles(event,context) {
   });
 
 
-  active.then(have_auth).then(function(count) {
+  active.then(function() { return have_auth; }).then(function(count) {
+    if ( ! auth_data || ! auth_data.access_token ) {
+      throw new Error('Invalid auth credentials');
+    }
     if (count < 1) {
       throw new Error('Already maximum number of active downloads')
     }
