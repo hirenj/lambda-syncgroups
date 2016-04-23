@@ -1,6 +1,23 @@
 var google = require('googleapis');
 var fs = require('fs');
 
+var bucket_name = 'test-gator';
+
+var promisify = function(aws) {
+  aws.Request.prototype.promise = function() {
+    return new Promise(function(accept, reject) {
+      this.on('complete', function(response) {
+        if (response.error) {
+          reject(response.error);
+        } else {
+          accept(response);
+        }
+      });
+      this.send();
+    }.bind(this));
+  };
+};
+
 var get_service_auth = function get_service_auth(secret,scopes) {
   return new Promise(function(resolve) {
     secret = JSON.parse(secret);
@@ -145,8 +162,8 @@ var google_get_file_if_needed_s3 = function(auth,file) {
 
   return new Promise(function(resolve,reject) {
     var params = {
-      Bucket: 'test-gator',
-      Key: 'uploads/'+ 'group-'+ file.groupid + '/' +file.id,
+      Bucket: bucket_name,
+      Key: 'uploads/google-' +file.id +'/group-'+ file.groupid,
       IfNoneMatch: '"'+file.md5+'"'
     };
     console.log("Getting file from google",file.id," md5 ",file.md5);
@@ -225,6 +242,30 @@ var google_get_me_email = function(auth) {
   });
 };
 
+var remove_missing_groups = function(fileid,groups) {
+  var AWS = require('aws-sdk');
+  promisify(AWS);
+  var s3 = new AWS.S3({region:'us-east-1'});
+  var params = {
+    Bucket: bucket_name,
+    Prefix: "uploads/"+fileid+"/"
+  };
+  return s3.listObjects(params).promise().then(function(result) {
+    var params = {Bucket: bucket_name, Delete: { Objects: [] }};
+    params.Delete.Objects = result.data.Contents.filter(function(content) {
+      var group_id = content.Key.split('group-')[1];
+      if (groups.indexOf(group_id) < 0) {
+        return true;
+      }
+    }).map(function(content) { return { Key: content.Key }; });
+    if (params.Delete.Objects.length < 1) {
+      return Promise.resolve(true);
+    }
+    console.log("Removing missing groups for ",JSON.stringify(params.Delete.Objects));
+    return s3.deleteObjects(params).promise();
+  });
+};
+
 var google_populate_file_group = function(auth,files) {
   var service = google.drive('v3');
   var promises = files.map(function(fileId) {
@@ -237,9 +278,13 @@ var google_populate_file_group = function(auth,files) {
         var groups = result.permissions.filter(function(perm) { return perm.type === 'group'; }).map(function(perm) {
           return perm.emailAddress;
         });
-        resolve(groups.map(function(groupid) {
-          return { 'id' : result.id, 'name' : result.name, 'md5Checksum' : result.md5Checksum, 'group' : groupid };
-        }));
+        remove_missing_groups("google-"+fileId,groups).then(function() {
+          resolve(groups.map(function(groupid) {
+            return { 'id' : result.id, 'name' : result.name, 'md5Checksum' : result.md5Checksum, 'group' : groupid };
+          }));
+        }).catch(function(err) {
+          reject(err);
+        });
       });
     });
   });
@@ -264,6 +309,9 @@ var google_get_changed_files = function(auth,page_token,files) {
         reject(err);
         return;
       }
+      console.log("Changes",JSON.stringify(result.changes.map(function(file) {
+        return { id: file.fileId, removed: file.removed, name : file.file.name };
+      })));
       var current_files = result.changes.filter(function(file) {
         return ! file.removed && file.file.name.match(/msdata/);
       }).map(function(file) {

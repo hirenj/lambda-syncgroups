@@ -9,6 +9,7 @@ var google = require('./google');
 var grants_table = 'grants';
 var download_topic = 'download';
 var download_queue = 'DownloadQueue';
+var bucket_name = 'gator';
 
 try {
     var config = require('./resources.conf.json');
@@ -17,6 +18,7 @@ try {
     download_queue = config.queue.DownloadQueue;
     downloadEverythingName = config.functions.downloadEverything;
     downloadFilesName = config.functions.downloadFiles;
+    bucket_name = config.buckets.dataBucket;
 } catch (e) {
 }
 
@@ -124,7 +126,6 @@ exports.downloadEverything = function downloadEverything(event,context) {
 
   // Push all the shared files into the queue
   download_promise.then(function(files) {
-    files = files.splice(0,1);
     console.log("Files to download ",files);
     // We should increase the frequency the download daemon runs here
     if (files.length == 0) {
@@ -182,7 +183,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
   });
 
 
-  active.then(function() { return have_auth; }).then(function(count) {
+  active.then(function(count) { return (have_auth).then(function() { return count; }); }).then(function(count) {
     if ( ! auth_data || ! auth_data.access_token ) {
       throw new Error('Invalid auth credentials');
     }
@@ -196,6 +197,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
       next_promise = require('./events').subscribe('DownloadFilesDaemon', context.invokedFunctionArn, {'no_messages': 0 } );
     }
     return next_promise.then(function() {
+      console.log("Want to get ",count," messages from queue");
       return queue.shift(count);
     });
   }).then(function(messages) {

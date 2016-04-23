@@ -112,7 +112,7 @@
     "LambdaDownloadEverythingRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}, {"Ref" : "RegisterEvents"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}, {"Ref" : "RegisterEvents"}, {"Ref" : "ReadWriteUploads"}],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -386,6 +386,36 @@
               "Resource": [
                 { "Fn::Join" :  [ "", [ "arn:aws:s3:::", { "Ref" : "AWS::StackName" }, "-gator/uploads/*" ] ] }
               ]
+            }
+          ]
+        }
+      }
+    },
+    "ReadWriteUploads" : {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : "ReadWriteUploads",
+        "PolicyDocument" : {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:DeleteObject"
+              ],
+              "Resource": [
+                { "Fn::Join" :  [ "", [ "arn:aws:s3:::", { "Ref" : "AWS::StackName" }, "-gator/uploads/*" ] ] }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket"
+              ],
+              "Resource": [
+                { "Fn::Join" :  [ "", [ "arn:aws:s3:::", { "Ref" : "AWS::StackName" }, "-gator" ] ] }
+              ],
+              "Condition": {"StringLike":{"s3:prefix":["uploads/*"]}}
             }
           ]
         }
