@@ -55,7 +55,7 @@
     "LambdaPopulateGroupGrantsRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteGrants"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteGrants"}, {"Ref" : "RegisterEvents"}],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -74,7 +74,7 @@
     "LambdaDownloadFilesRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}, {"Ref" : "WriteDownloadTopic"}, {"Ref" : "RegisterEvents"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}, {"Ref" : "WriteDownloadTopic"}, {"Ref" : "ReadValidGroups"},{"Ref" : "RegisterEvents"}],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -417,6 +417,26 @@
               ],
               "Condition": {"StringLike":{"s3:prefix":["uploads/*"]}}
             }
+          ]
+        }
+      }
+    },
+    "ReadValidGroups" : {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : "ReadValidGroups",
+        "PolicyDocument" : {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "ReadGrantsConfig",
+              "Effect": "Allow",
+              "Action": [
+                  "s3:GetObject"
+              ],
+              "Resource": { "Fn::Join" :  [ "", [ "arn:aws:s3:", ":" ,":", { "Ref" : "dataBucket" }, "/conf/groupids" ] ]}
+            }
+
           ]
         }
       }

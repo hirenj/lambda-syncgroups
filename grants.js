@@ -1,60 +1,10 @@
 var AWS = require('aws-sdk');
 var dynamo = new AWS.DynamoDB({region:'us-east-1'});
+var s3 = new AWS.S3({region:'us-east-1'});
 
 require('es6-promise').polyfill();
 
 var table_promises = {};
-
-var get_table = function(table) {
-	return Promise.resolve(table);
-	if (table_promises[table]) {
-		return table_promises[table];
-	}
-	table_promises[table] = new Promise(function(resolve,reject) {
-		dynamo.listTables(function(err,data) {
-			if (err) {
-				throw err;
-			}
-			if (data.TableNames.indexOf(table) < 0) {
-				resolve(create_table(table));
-				return;
-			}
-			resolve(table);
-		});
-	});
-	return table_promises[table];
-};
-
-var create_table = function(table) {
-	var params = {
-	    TableName : table,
-	    KeySchema: [       
-	        { AttributeName: "Name", KeyType: "HASH"},  //Partition key
-	        { AttributeName: "valid_to", KeyType: "RANGE" }  //Sort key
-	    ],
-	    AttributeDefinitions: [       
-	        { AttributeName: "Name", AttributeType: "S" },
-	        { AttributeName: "valid_to", AttributeType: "N" }
-	    ],
-	    ProvisionedThroughput: {       
-	        ReadCapacityUnits: 1, 
-	        WriteCapacityUnits: 1
-	    }
-	};
-	return new Promise(function(resolve,reject) {
-		dynamo.createTable(params,function(err,result) {
-			if (err) {
-				throw err;
-			}
-			dynamo.waitFor('tableExists', {TableName: table}, function(err,result) {
-				if (err) {
-					throw err;
-				}
-				resolve(true);
-			});
-		});
-	});
-};
 
 var make_items = function(groupdata) {
 	var groupid = groupdata.groupid;
@@ -71,7 +21,7 @@ var make_items = function(groupdata) {
 };
 
 var put_grants = function(table,grants) {
-	return get_table(table).then(function() {
+	return Promise.resolve(true).then(function() {
 		console.log("Got table");
 		var params = {};
 		params.RequestItems = {};
@@ -88,7 +38,22 @@ var put_grants = function(table,grants) {
 	});
 };
 
+var write_grant_config = function(valid_groups,bucket) {
+	var params = {
+		Bucket: bucket,
+		Key: 'conf/groupids',
+		Body: JSON.stringify(valid_groups)
+	};
+	return new Promise(function(resolve,reject) {
+		s3.upload(params,function(err,result) {
+			if (err) {
+				reject(err);
+				return;
+			}
+			resolve(result);
+		});
+    });
+};
 
-exports.getTable = get_table;
-
+exports.writeGrantConfig = write_grant_config;
 exports.putGrants = put_grants;

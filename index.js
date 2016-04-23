@@ -381,11 +381,13 @@ exports.populateGroupGrants = function populateGroupGrants(event,context) {
     require('./secrets').use_kms = false;
   }
   google.getGroups().then(function(grants) {
-    return require('./grants').putGrants(grants_table,grants);
+    return require('./grants').putGrants(grants_table,grants).then(function() {
+      return require('./grants').writeGrantConfig(grants.map(function(grant) { return grant.groupid; }),bucket_name);
+    });
   }).then(function() {
-    require('./events').setInterval('PopulateGroupGrants','1 hour').then(function(new_rule) {
+    return require('./events').setInterval('PopulateGroupGrants','2 hours').then(function(new_rule) {
       if (new_rule) {
-        require('./events').subscribe('PopulateGroupGrants',context.invokedFunctionArn,{});
+        return require('./events').subscribe('PopulateGroupGrants',context.invokedFunctionArn,{});
       }
     });
   }).catch(function(err) {
