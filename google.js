@@ -439,15 +439,20 @@ var apps_script = function(auth,scriptId,method) {
 };
 
 /* Things you've got to do to get this working:
-   For whichever user is associated with the
-   refresh_token stored in the secrets, add
-   permission as an editor for the API project
-   that granted the refresh_token (this seems
-   like a massive security hole).
-   Upload the getgroups.gs to google drive under
-   the same user.
-   Run it once to auth it, and deploy as an API
-   and get the ID for it.
+    * For whichever user is associated with the
+      refresh_token stored in the secrets, add
+      permission as an editor for the API project
+      that granted the refresh_token.
+    * Upload the getgroups.gs to google drive under
+      the same user.
+    * Change the project number for the script
+      so that it's using the common project.
+    * Remove the editor permission for the user (
+      we only did this so that Apps Script could
+      create a Client ID and Client Secret to use
+      internally)
+    * Run it once to auth it, and deploy as an API
+      and get the ID for it.
  */
 
 var getOtherGroups = function getOtherGroups() {
