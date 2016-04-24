@@ -121,6 +121,7 @@ module.exports = function(grunt) {
 			access_type: 'offline',
 			scope: [	"https://www.googleapis.com/auth/admin.directory.group.readonly",
 						"https://www.googleapis.com/auth/admin.directory.group.member.readonly",
+						"https://www.googleapis.com/auth/groups",
 						"https://www.googleapis.com/auth/drive.readonly",
 						"https://www.googleapis.com/auth/userinfo.email"]
 		});

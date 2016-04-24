@@ -5,7 +5,7 @@ function getgroups() {
   return groups.map(function(group) {
     var users = [];
     try {
-      users = group.getUsers().map(function(user) { return user.getEmail(); });
+      users = group.getUsers().map(function(user) { return { "id" : user.getEmail(), "email" : user.getEmail() }; });
     } catch (e) {
     }
     return { 'groupid' : group.getEmail(), 'type' : 'googlegroup', 'members' : users

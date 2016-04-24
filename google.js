@@ -370,7 +370,7 @@ var downloadFileIfNecessary = function downloadFileIfNecessary(file) {
   });
 };
 
-var getGroups = function getGroups() {
+var getGroupsDomain = function getGroupsDomain() {
   var scopes = ["https://www.googleapis.com/auth/admin.directory.group.readonly","https://www.googleapis.com/auth/admin.directory.group.member.readonly"];
   return getServiceAuth(scopes).then(function(auth) {
     return google_get_me_email(auth);
@@ -384,6 +384,16 @@ var getGroups = function getGroups() {
         });
       }));
     });
+  });
+};
+
+var getGroups = function getGroups() {
+  return Promise.all( [ getGroupsDomain(), getOtherGroups() ]).then(function(groupsdata) {
+    var results = groupsdata[0];
+    var groupids = results.map(function(group) { return group.groupid; });
+    return results.concat(groupsdata[1].filter(function(group) {
+      return groupids.indexOf(group.groupid) < 0;
+    }));
   });
 };
 
@@ -409,6 +419,44 @@ var getServiceAuth = function getServiceAuth(scopes,force) {
   return auth_promise;
 };
 
+var apps_script = function(auth,scriptId,method) {
+  var service = google.script('v1');
+  // Create execution request.
+  var request = {
+      'function': method,
+      'parameters': [],
+      'devMode': false   // Optional.
+  };
+
+  return new Promise(function(resolve,reject) {
+    service.scripts.run({"scriptId" : scriptId, auth: auth, resource: request},function(err,result) {
+      if (err || result.error) {
+        reject(err || result.error);
+      }
+      resolve(result.response.result);
+    });
+  });
+};
+
+/* Things you've got to do to get this working:
+   For whichever user is associated with the
+   refresh_token stored in the secrets, add
+   permission as an editor for the API project
+   that granted the refresh_token (this seems
+   like a massive security hole).
+   Upload the getgroups.gs to google drive under
+   the same user.
+   Run it once to auth it, and deploy as an API
+   and get the ID for it.
+ */
+
+var getOtherGroups = function getOtherGroups() {
+  return require('./secrets').getSecret().then(function(secret) {
+    return get_service_auth(secret,[]);
+  }).then(function(auth) {
+    return apps_script(auth,'MAgSTtG0xXRHQLMfFQVaOiYmdacAnBeYG','getgroups');
+  });
+}
 exports.registerHook = registerHook;
 exports.removeHook = removeHook;
 exports.downloadFileIfNecessary = downloadFileIfNecessary;
