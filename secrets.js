@@ -19,7 +19,7 @@ var promisify = function(aws) {
 
 var getSecretKmsLocal = function getSecretKmsLocal(filename) {
   return new Promise(function(resolve,reject) {
-    fs.readFile(secretPath,function(err,data) {
+    fs.readFile(filename,function(err,data) {
       if (err) {
         reject(err);
         return;

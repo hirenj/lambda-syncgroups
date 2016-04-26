@@ -36,10 +36,11 @@ var get_service_auth = function get_service_auth(secret,scopes) {
 
 var google_get_user_groups = function(auth,user) {
   var service = google.admin('directory_v1');
-  return new Promise(function(resolve) {
+  return new Promise(function(resolve,reject) {
     service.groups.list({auth : auth, userKey : user },function(err,data) {
       if (err) {
-        throw err;
+        reject(err);
+        return;
       }
       resolve ((data.groups || []).map(function(group) {
         return group.email;
@@ -384,6 +385,13 @@ var getGroupsDomain = function getGroupsDomain() {
         });
       }));
     });
+  }).catch(function(err) {
+    if (err.code == 404) {
+      console.log("Not a domains user");
+      return [];
+    }
+    console.log("Other error ",err,err.stack);
+    return [];
   });
 };
 
@@ -391,7 +399,7 @@ var getGroups = function getGroups() {
   return Promise.all( [ getGroupsDomain(), getOtherGroups() ]).then(function(groupsdata) {
     var results = groupsdata[0];
     var groupids = results.map(function(group) { return group.groupid; });
-    return results.concat(groupsdata[1].filter(function(group) {
+    return results.concat((groupsdata[1] || []).filter(function(group) {
       return groupids.indexOf(group.groupid) < 0;
     }));
   });
