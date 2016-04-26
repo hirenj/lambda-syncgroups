@@ -64,8 +64,19 @@ var download_files_group = function(group) {
   return google.getFiles(group);
 };
 
+var check_accepted_groups = function(filedata) {
+  return require('./grants').readGrantConfig(bucket_name).then(function(groups) {
+    console.log("Valid groups are ",groups.join(','));
+    filedata.files = filedata.files.filter(function(file) {
+      return groups.indexOf(file.group) >= 0;
+    });
+    return filedata;
+  });
+};
+
+
 var download_changed_files = function(page_token) {
-  return google.getChangedFiles(page_token);
+  return google.getChangedFiles(page_token).then(check_accepted_groups);
 };
 
 var update_page_token = function(page_token,arn) {

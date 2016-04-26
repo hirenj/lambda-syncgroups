@@ -74,7 +74,7 @@
     "LambdaDownloadFilesRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}, {"Ref" : "WriteDownloadTopic"}, {"Ref" : "ReadValidGroups"},{"Ref" : "RegisterEvents"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}, {"Ref" : "WriteDownloadTopic"},{"Ref" : "RegisterEvents"}],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -112,7 +112,7 @@
     "LambdaDownloadEverythingRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}, {"Ref" : "RegisterEvents"}, {"Ref" : "ReadWriteUploads"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}, {"Ref" : "RegisterEvents"}, {"Ref" : "ReadValidGroups"}, {"Ref" : "ReadWriteUploads"}],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [

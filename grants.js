@@ -55,5 +55,22 @@ var write_grant_config = function(valid_groups,bucket) {
     });
 };
 
+var read_grant_config = function(bucket) {
+	var params = {
+		Bucket: bucket,
+		Key: 'conf/groupids'
+	};
+	return new Promise(function(resolve,reject) {
+		s3.getObject(params,function(err,result) {
+			if (err) {
+				reject(err);
+				return;
+			}
+			resolve(JSON.parse(result.Body.toString()));
+		});
+    });
+};
+
 exports.writeGrantConfig = write_grant_config;
+exports.readGrantConfig = read_grant_config;
 exports.putGrants = put_grants;
