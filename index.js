@@ -359,13 +359,21 @@ re-subscription with
         return Promise.resolve(true);
       }
       return require('./events').subscribe('GoogleWebhookWatcher',context.invokedFunctionArn,change_state);
+    }).catch(function(err) {
+      console.log("Error re-subscribing, trying again in 5 minutes");
+      return require('./events').setTimeout('GoogleWebhookWatcher',new Date(new Date().getTime() + 5*60*1000));
     });
   }).then(function() {
     console.log("Function complete");
     context.succeed('Done');
   }).catch(function(err) {
-    console.log(err,err.stack);
-    context.succeed("Done");
+    console.log("Other error during execution, rescheduling for 5 minutes");
+    require('./events').setTimeout('GoogleWebhookWatcher',new Date(new Date().getTime() + 5*60*1000)).then(function(){
+      context.succeed("Done");
+    }).catch(function(err) {
+      console.log("Can't even resubscribe. Something is very wrong");
+      context.succeed("Done");
+    });
   });
 };
 
