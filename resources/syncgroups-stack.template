@@ -292,7 +292,16 @@
                   "Effect": "Allow",
                   "Action": "kms:Decrypt",
                   "Resource" : { "Fn::Join" :  [ "", [ "arn:aws:kms:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId" } ,":alias/default" ] ]}
+                },
+                {
+                  "Sid": "ReadEncryptedData",
+                  "Effect": "Allow",
+                  "Action": [
+                      "s3:GetObject"
+                  ],
+                  "Resource": { "Fn::Join" :  [ "", [ "arn:aws:s3:", ":" ,":", { "Ref" : "dataBucket" }, "/conf/creds.kms.json.encrypted" ] ]}
                 }
+
             ]
         }
       }
