@@ -10,13 +10,13 @@ var make_items = function(groupdata) {
 	var groupid = groupdata.groupid;
 	var grouptype = groupdata.type;
 	var item = {};
-	item.Name = {S:grouptype+groupid};
+	item.Name = {S:grouptype+"-"+groupid};
 	item.valid_to = {N:'9007199254740991'};
 	item.valid_from = {N:'0'};
 	item.users = {SS:groupdata.members.map(function(user) { return user.id; })};
 	item.grantee = {S:'system'};
 	item.proteins = {S:'*'};
-	item.datasets = {S:grouptype+groupid+'/*'};
+	item.datasets = {S:grouptype+"-"+groupid+'/*'};
 	return {'PutRequest' : { 'Item': item } };
 };
 

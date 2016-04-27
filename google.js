@@ -57,7 +57,11 @@ var google_get_group_membership = function(auth,group) {
         throw err;
       }
       var members_array = (data.members || []).map(function(member) {
-        return { 'id' : "googleuser-"+member.id, 'email' : member.email };
+        var role = member.role;
+        if (role == 'OWNER' || role == 'MANAGER') {
+          role = 'superuser';
+        }
+        return { 'id' : "googleuser-"+member.id, 'email' : member.email, 'role' : role };
       });
       resolve(members_array);
     });
@@ -164,7 +168,7 @@ var google_get_file_if_needed_s3 = function(auth,file) {
   return new Promise(function(resolve,reject) {
     var params = {
       Bucket: bucket_name,
-      Key: 'uploads/google-' +file.id +'/group-'+ file.groupid,
+      Key: 'uploads/google-' +file.id +'/googlegroup-'+ file.groupid,
       IfNoneMatch: '"'+file.md5+'"'
     };
     console.log("Getting file from google",file.id," md5 ",file.md5);
@@ -254,7 +258,7 @@ var remove_missing_groups = function(fileid,groups) {
   return s3.listObjects(params).promise().then(function(result) {
     var params = {Bucket: bucket_name, Delete: { Objects: [] }};
     params.Delete.Objects = result.data.Contents.filter(function(content) {
-      var group_id = content.Key.split('group-')[1];
+      var group_id = content.Key.split('googlegroup-')[1];
       if (groups.indexOf(group_id) < 0) {
         return true;
       }
