@@ -36,25 +36,13 @@ var get_rule_state = function(event) {
 
 exports.subscribe = function subscribe(event,arn,data) {
   var cloudevents = new AWS.CloudWatchEvents({region:'us-east-1'});
-  var lambda = new AWS.Lambda({region: 'us-east-1'});
   var id = arn.split(':').reverse()[0];
   return cloudevents.putTargets({
     Rule:event,
     Targets:[
       { Arn: arn, Id: id, Input: JSON.stringify(data) }
     ]
-  }).promise().then(lambda.addPermission({
-    'Action' : 'lambda:invokeFunction',
-    'StatementId' : event+invoke,
-    'Principal' : 'events.amazonaws.com',
-    'FunctionName' : id,
-    'SourceArn' : 'arn:aws:events:',+arn.split(':')[4]+':'+arn.split(':')[5] +,':rule/'+event
-  }).promise().catch(function(err) {
-    if (err.code == 'ResourceConflicException') {
-      return;
-    }
-    throw err;
-  });
+  }).promise();
 };
 
 exports.setInterval = function setInterval(event,rate) {
