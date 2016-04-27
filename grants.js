@@ -20,8 +20,38 @@ var make_items = function(groupdata) {
 	return {'PutRequest' : { 'Item': item } };
 };
 
+var get_existing_google_grants = function(table) {
+	var params = {
+		TableName : table,
+		ProjectionExpression : '#name',
+		FilterExpression: "begins_with(#name,:prefix)",
+		ExpressionAttributeNames:{
+			"#name" : "Name"
+		},
+		ExpressionAttributeValues: {
+			":prefix" : {S:"googlegroup-"}
+		}
+	};
+	return new Promise(function(resolve,reject) {
+		dynamo.scan(params,function(err,data) {
+			if (err) {
+				reject(err);
+				return;
+			}
+			resolve((data.Items || []).map(function(item) { return item.Name['S'].replace(/^googlegroup-/,''); }));
+		});
+	});
+};
+
 var put_grants = function(table,grants) {
-	return Promise.resolve(true).then(function() {
+	return get_existing_google_grants(table).then(function(existing) {
+		var toadd = grants.map(function(grant) { return grant.groupid; });
+		existing.forEach(function(current) {
+			if (toadd.indexOf(current) < 0) {
+				console.log("Need to remove ",current);
+				grants.push({ "groupid" : current, "type" : "googlegroup", "members" : [ {"id" : "none" } ] });
+			}
+		});
 		console.log("Got table");
 		var params = {};
 		params.RequestItems = {};
