@@ -1,3 +1,4 @@
 event.json
 Gruntfile.js
 dist
+creds.*
