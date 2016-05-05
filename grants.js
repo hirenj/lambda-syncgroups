@@ -13,7 +13,8 @@ var make_items = function(groupdata) {
 	item.Name = {S:grouptype+"-"+groupid};
 	item.valid_to = {N:'9007199254740991'};
 	item.valid_from = {N:'0'};
-	item.users = {SS:groupdata.members.map(function(user) { return user.id; })};
+	item.users = {SS:groupdata.members.map(function(user) { return user.email; })};
+	item.superusers = {SS:groupdata.members.filter(function(user) { return user.role == 'superuser'; }).map(function(user) { return user.email })};
 	item.grantee = {S:'system'};
 	item.proteins = {S:'*'};
 	item.datasets = {S:grouptype+"-"+groupid+'/*'};
