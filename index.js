@@ -1,5 +1,4 @@
 var https = require('https');
-var querystring = require('querystring');
 require('es6-promise').polyfill();
 
 
