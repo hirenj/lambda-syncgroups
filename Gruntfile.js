@@ -136,7 +136,7 @@ module.exports = function(grunt) {
 	});
 
 	grunt.registerTask('encrypt-secrets-local','Encrypt secrets',function() {
-		var kmish = require('./lib/kmish');
+		var kmish = require('lambda-helpers').kmish;
 		var fs = require('fs');
 		kmish.encrypt({ 'PlainText' : fs.readFileSync('creds.json','utf8') },function(err,encrypted) {
 			fs.writeFileSync('creds.kmish.json.encrypted',JSON.stringify( { 'store' : 'kmish', 'CiphertextBlob' : encrypted } ));
@@ -146,12 +146,12 @@ module.exports = function(grunt) {
 	grunt.registerTask('reencrypt-secrets-aws','Re-encrypt secrets for AWS',function() {
 		var done = this.async();
 		var keyId = 'alias/default';
-		var secrets = require('./secrets');
+		var secrets = require('lambda-helpers').secrets;
 		var fs = require('fs');
 		secrets.use_kms = false;
 		secrets.getSecret().then(function(secret) {
-			var KMS = require('aws-sdk').KMS;
-			var kms = new KMS({region:'us-east-1'});
+			var KMS = require('lambda-helpers').AWS.KMS;
+			var kms = new KMS();
 			kms.encrypt({ 'Plaintext' : secret , 'KeyId' : keyId },function(err,encrypted) {
 				if (err) {
 					throw err;
@@ -174,8 +174,8 @@ module.exports = function(grunt) {
 	});
 
 	grunt.registerTask('encrypt-secrets-aws','Encrypt secrets',function(keyId) {
-		var AWS = require('aws-sdk');
-		var kms = new AWS.KMS({region:'us-east-1'});
+		var AWS = require('lambda-helpers').AWS.;
+		var kms = new AWS.KMS();
 		var keyId = 'alias/default';
 		var fs = require('fs');
 		kms.encrypt({ 'Plaintext' : fs.readFileSync('creds.json','utf8'), 'KeyId' : keyId },function(err,encrypted) {
