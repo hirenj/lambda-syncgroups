@@ -2,3 +2,5 @@ creds.json
 node_modules
 dist
 *.swp
+*.kmish.json.*
+*.kms.json.*
