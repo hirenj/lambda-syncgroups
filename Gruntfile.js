@@ -174,7 +174,7 @@ module.exports = function(grunt) {
 	});
 
 	grunt.registerTask('encrypt-secrets-aws','Encrypt secrets',function(keyId) {
-		var AWS = require('lambda-helpers').AWS.;
+		var AWS = require('lambda-helpers').AWS;
 		var kms = new AWS.KMS();
 		var keyId = 'alias/default';
 		var fs = require('fs');

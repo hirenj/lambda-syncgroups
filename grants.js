@@ -71,6 +71,7 @@ var put_grants = function(table,grants) {
 };
 
 var write_grant_config = function(valid_groups,bucket) {
+	console.log("Writing bucket config to ",bucket);
 	var params = {
 		Bucket: bucket,
 		Key: 'conf/groupids',

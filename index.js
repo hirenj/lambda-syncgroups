@@ -9,15 +9,17 @@ var grants_table = 'grants';
 var download_topic = 'download';
 var download_queue = 'DownloadQueue';
 var bucket_name = 'gator';
+var downloadEverythingName = 'downloadEverything';
+var downloadFilesName = 'downloadFiles';
 
 try {
-    var config = require('./resources.conf.json');
-    grants_table = config.tables.grants;
-    download_topic = config.queue.DownloadTopic;
-    download_queue = config.queue.DownloadQueue;
-    downloadEverythingName = config.functions.downloadEverything;
-    downloadFilesName = config.functions.downloadFiles;
-    bucket_name = config.buckets.dataBucket;
+  var config = require('./resources.conf.json');
+  grants_table = config.tables.grants;
+  download_topic = config.queue.DownloadTopic;
+  download_queue = config.queue.DownloadQueue;
+  downloadEverythingName = config.functions.downloadEverything;
+  downloadFilesName = config.functions.downloadFiles;
+  bucket_name = config.buckets.dataBucket;
 } catch (e) {
 }
 
@@ -326,11 +328,13 @@ exports.populateGroupGrants = function populateGroupGrants(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
     require('lambda-helpers').secrets.use_kms = false;
   }
-  const grants = require('./grants');
+
+  const Grants = require('./grants');
 
   google.getGroups().then(function(grants) {
-    return grants.putGrants(grants_table,grants).then(function() {
-      return grants.writeGrantConfig(grants.map(function(grant) { return grant.groupid; }),bucket_name);
+    return Grants.putGrants(grants_table,grants).then(function() {
+      console.log("Updated grants table, writing config to, ",bucket_name);
+      return Grants.writeGrantConfig(grants.map(function(grant) { return grant.groupid; }),bucket_name);
     });
   }).then(function() {
     return Events.setInterval('PopulateGroupGrants','2 hours').then(function(new_rule) {

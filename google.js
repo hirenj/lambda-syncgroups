@@ -423,7 +423,7 @@ var getServiceAuth = function getServiceAuth(scopes,force) {
     console.log("Returning cached permissions");
     return auth_promise;
   }
-  auth_promise = require('./secrets').getSecret().then(function(secret) {
+  auth_promise = require('lambda-helpers').secrets.getSecret().then(function(secret) {
     return get_service_auth(secret,scopes);
   });
   return auth_promise;
@@ -466,7 +466,7 @@ var apps_script = function(auth,scriptId,method) {
  */
 
 var getOtherGroups = function getOtherGroups() {
-  return require('./secrets').getSecret().then(function(secret) {
+  return require('lambda-helpers').secrets.getSecret().then(function(secret) {
     return get_service_auth(secret,[]);
   }).then(function(auth) {
     return apps_script(auth,'MAgSTtG0xXRHQLMfFQVaOiYmdacAnBeYG','getgroups');
