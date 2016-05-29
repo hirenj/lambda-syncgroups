@@ -1,27 +1,17 @@
+'use strict';
+/*jshint esversion: 6, node:true */
+
 var google = require('googleapis');
 var fs = require('fs');
 
 var bucket_name = 'test-gator';
 
-var promisify = function(aws) {
-  aws.Request.prototype.promise = function() {
-    return new Promise(function(accept, reject) {
-      this.on('complete', function(response) {
-        if (response.error) {
-          reject(response.error);
-        } else {
-          accept(response);
-        }
-      });
-      this.send();
-    }.bind(this));
-  };
-};
-
 var get_service_auth = function get_service_auth(secret,scopes) {
   return new Promise(function(resolve) {
     secret = JSON.parse(secret);
-    var authClient = new google.auth.OAuth2(secret.installed.client_id,secret.installed.client_secret,'urn:ietf:wg:oauth:2.0:oob');
+    var authClient = new google.auth.OAuth2(secret.installed.client_id,
+                                            secret.installed.client_secret,
+                                            'urn:ietf:wg:oauth:2.0:oob');
     authClient.setCredentials({
       refresh_token: secret.installed.refresh_token
     });
@@ -160,18 +150,15 @@ var google_get_file_if_needed = function(auth,file) {
   return google_get_file_if_needed_s3(auth,file);
 }
 
-var google_get_file_if_needed_s3 = function(auth,file) {
-  var drive = google.drive('v3');
-  var AWS = require('aws-sdk');
-  var s3 = new AWS.S3({region:'us-east-1'});
-
+var check_existing_file_s3 = function(file) {
+  var AWS = require('lambda-helpers').AWS;
+  var s3 = new AWS.S3();
+  var params = {
+    Bucket: bucket_name,
+    Key: 'uploads/google-' +file.id +'/googlegroup-'+ file.groupid,
+    IfNoneMatch: '"'+file.md5+'"'
+  };
   return new Promise(function(resolve,reject) {
-    var params = {
-      Bucket: bucket_name,
-      Key: 'uploads/google-' +file.id +'/googlegroup-'+ file.groupid,
-      IfNoneMatch: '"'+file.md5+'"'
-    };
-    console.log("Getting file from google",file.id," md5 ",file.md5);
     s3.headObject(params, function(err, data) {
       if (err) {
 
@@ -188,28 +175,40 @@ var google_get_file_if_needed_s3 = function(auth,file) {
 
         if (err.statusCode == 404) {
           console.log("No file, need to upload");
-        }
-      }
-      console.log("Trying upload to S3");
-      var in_stream = drive.files.get({
-        'auth' : auth,
-        'fileId' : file.id ,
-        'alt' : 'media'
-      });
-      var stream = new require('stream').PassThrough();
-      in_stream.pipe(stream);
-      params.Body = stream;
-      params.ContentMD5 = new Buffer(file.md5,'hex').toString('base64');
-      var options = {partSize: 15 * 1024 * 1024, queueSize: 1};
-      s3.upload(params, options, function(err, data) {
-        if (err) {
-          reject(err);
+          resolve(file);
           return;
         }
-        resolve(data);
-      });
-    });
 
+        reject(err);
+        return;
+      }
+    });
+  });
+};
+
+var google_get_file_if_needed_s3 = function(auth,file) {
+  var drive = google.drive('v3');
+  console.log("Getting file from google",file.id," md5 ",file.md5);
+  return check_existing_file_s3(file).then(function(exists) {
+    if (exists) {
+      return true;
+    }
+    var params = {
+      Bucket: bucket_name,
+      Key: 'uploads/google-' +file.id +'/googlegroup-'+ file.groupid
+    };
+    console.log("Trying upload to S3");
+    var in_stream = drive.files.get({
+      'auth' : auth,
+      'fileId' : file.id ,
+      'alt' : 'media'
+    });
+    var stream = new require('stream').PassThrough();
+    in_stream.pipe(stream);
+    params.Body = stream;
+    params.ContentMD5 = new Buffer(file.md5,'hex').toString('base64');
+    var options = {partSize: 15 * 1024 * 1024, queueSize: 1};
+    return s3.upload(params, options).promise();
   });
 };
 
@@ -248,16 +247,15 @@ var google_get_me_email = function(auth) {
 };
 
 var remove_missing_groups = function(fileid,groups) {
-  var AWS = require('aws-sdk');
-  promisify(AWS);
-  var s3 = new AWS.S3({region:'us-east-1'});
+  var AWS = require('lambda-helpers').AWS;
+  var s3 = new AWS.S3();
   var params = {
     Bucket: bucket_name,
     Prefix: "uploads/"+fileid+"/"
   };
   return s3.listObjects(params).promise().then(function(result) {
     var params = {Bucket: bucket_name, Delete: { Objects: [] }};
-    params.Delete.Objects = result.data.Contents.filter(function(content) {
+    params.Delete.Objects = result.Contents.filter(function(content) {
       var group_id = content.Key.split('googlegroup-')[1];
       if (groups.indexOf(group_id) < 0) {
         return true;

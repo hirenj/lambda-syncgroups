@@ -1,9 +1,9 @@
-var https = require('https');
-require('es6-promise').polyfill();
+'use strict';
+/*jshint esversion: 6, node:true */
 
-
-var Queue = require('./queue').queue;
+var Queue = require('lambda-helpers').queue;
 var google = require('./google');
+const Events = require('lambda-helpers').events;
 
 var grants_table = 'grants';
 var download_topic = 'download';
@@ -20,48 +20,6 @@ try {
     bucket_name = config.buckets.dataBucket;
 } catch (e) {
 }
-
-
-Promise.anyFailed = function(arrayOfPromises) {
-  // For each promise that resolves or rejects,
-  // make them all resolve.
-  // Record which ones did resolve or reject
-  var resolvingPromises = arrayOfPromises.map(function(promise) {
-    return promise.then(function(result) {
-      return {
-        resolve: true,
-        result: result
-      };
-    }, function(error) {
-      return {
-        resolve: false,
-        result: error
-      };
-    });
-  });
-
-  return Promise.all(resolvingPromises).then(function(results) {
-    // Count how many passed/failed
-    var passed = [], failed = [], allPassed = true;
-    results.forEach(function(result) {
-      if(! result.resolve) {
-        allPassed = false;
-      }
-      passed.push(result.resolve ? result.result : null);
-      failed.push(result.resolve ? null : result.result);
-    });
-
-    if(! allPassed) {
-      throw failed;
-    } else {
-      return passed;
-    }
-  });
-};
-
-var download_files_group = function(group) {
-  return google.getFiles(group);
-};
 
 var check_accepted_groups = function(filedata) {
   return require('./grants').readGrantConfig(bucket_name).then(function(groups) {
@@ -88,11 +46,11 @@ exports.acceptWebhook = function acceptWebhook(event,context) {
   // We want to use the setTimeout technique here to coalesce
   // any subsequent calls to the webhook and do a primitive
   // rate limiting
-  require('./events').setTimeout('GoogleDownloadFiles',exp_date).then(function(new_rule) {
+  Events.setTimeout('GoogleDownloadFiles',exp_date).then(function(new_rule) {
     if (! new_rule) {
       return;
     }
-    return require('./events').subscribe('GoogleDownloadFiles',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadEverythingName,{'page_token' : 'none'});
+    return Events.subscribe('GoogleDownloadFiles',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadEverythingName,{'page_token' : 'none'});
   }).catch(function(err) {
     console.error(err,err.stack);
   }).then(function() {
@@ -107,7 +65,7 @@ exports.acceptWebhook = function acceptWebhook(event,context) {
 // Needs permission to run from cloudwatch event
 exports.downloadEverything = function downloadEverything(event,context) {
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
-    require('./secrets').use_kms = false;
+    require('lambda-helpers').secrets.use_kms = false;
   }
   console.log("downloadEverything");
   console.log(event);
@@ -124,11 +82,11 @@ exports.downloadEverything = function downloadEverything(event,context) {
   var download_promise = Promise.resolve(true);
 
   if (group) {
-    download_promise = download_files_group(group);
+    download_promise = google.getFiles(group);
   } else if (token) {
     download_promise = download_changed_files(token).then(function(fileinfos) {
       // Re-subscribe self using the new page token as the state
-      return require('./events').subscribe("GoogleDownloadFiles",context.invokedFunctionArn,{page_token:fileinfos.token}).then(function() {
+      return Events.subscribe("GoogleDownloadFiles",context.invokedFunctionArn,{page_token:fileinfos.token}).then(function() {
         return fileinfos.files;
       });
     });
@@ -146,9 +104,9 @@ exports.downloadEverything = function downloadEverything(event,context) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     })).then(function() {
       // Register the downloadFiles daemon if there are files
-      return require('./events').setInterval('DownloadFilesDaemon','3 minutes').then(function(new_rule) {
+      return Events.setInterval('DownloadFilesDaemon','3 minutes').then(function(new_rule) {
         if (new_rule) {
-          require('./events').subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
+          Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
         }
       });
       return true;
@@ -170,7 +128,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
 exports.downloadFiles = function downloadFiles(event,context) {
   console.log("Lambda downloadFiles execution");
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
-    require('./secrets').use_kms = false;
+    require('lambda-helpers').secrets.use_kms = false;
   }
 
   var auth_data = null;
@@ -204,7 +162,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
     if (total_messages < 1) {
       throw new Error('No messages');
     } else {
-      next_promise = require('./events').subscribe('DownloadFilesDaemon', context.invokedFunctionArn, {'no_messages': 0 } );
+      next_promise = Events.subscribe('DownloadFilesDaemon', context.invokedFunctionArn, {'no_messages': 0 } );
     }
     return next_promise.then(function() {
       console.log("Want to get ",count," messages from queue");
@@ -223,7 +181,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
         'queueId' : message.ReceiptHandle
       });
       var sns_params = { 'topic': download_topic, 'Message' : sns_message };
-      return require('./lib/snish').publish(sns_params).then(function() {
+      return require('lambda-helpers').sns.publish(sns_params).then(function() {
         console.log("Triggered download");
       }).catch(function(err) {
         console.log("Didnt trigger download");
@@ -237,10 +195,10 @@ exports.downloadFiles = function downloadFiles(event,context) {
       console.log("No messages");
       if (event.no_messages >= 5) {
         console.log("Disabling downloadFiles daemon");
-        return require('./events').setTimeout('DownloadFilesDaemon',new Date(1000));
+        return Events.setTimeout('DownloadFilesDaemon',new Date(1000));
       } else {
         console.log("Incrementing no messages counter to ",(event.no_messages || 0) + 1);
-        return require('./events').subscribe('DownloadFilesDaemon',context.invokedFunctionArn,{'no_messages':(event.no_messages || 0) + 1});
+        return Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn,{'no_messages':(event.no_messages || 0) + 1});
       }
     } else {
       console.error(err);
@@ -276,21 +234,6 @@ exports.downloadFile = function downloadFile(event,context) {
     context.succeed('Triggered download');
   });
 
-};
-
-var promisify = function(aws) {
-  aws.Request.prototype.promise = function() {
-    return new Promise(function(accept, reject) {
-      this.on('complete', function(response) {
-        if (response.error) {
-          reject(response.error);
-        } else {
-          accept(response);
-        }
-      });
-      this.send();
-    }.bind(this));
-  };
 };
 
 /*
@@ -349,7 +292,7 @@ re-subscription with
       'page_token' : last_hook.page_token
     };
     console.log("Re-subscribing");
-    return require('./events').setTimeout('GoogleWebhookWatcher',exp_date).then(function() {
+    return Events.setTimeout('GoogleWebhookWatcher',exp_date).then(function() {
       console.log("Re-subscribed, next refresh at ",exp_date);
       // We don't clobber the targets if
       // this is just a rescheduling
@@ -357,17 +300,17 @@ re-subscription with
         console.log("Skipping target setting as we are simply rescheduling");
         return Promise.resolve(true);
       }
-      return require('./events').subscribe('GoogleWebhookWatcher',context.invokedFunctionArn,change_state);
+      return Events.subscribe('GoogleWebhookWatcher',context.invokedFunctionArn,change_state);
     }).catch(function(err) {
       console.log("Error re-subscribing, trying again in 5 minutes");
-      return require('./events').setTimeout('GoogleWebhookWatcher',new Date(new Date().getTime() + 5*60*1000));
+      return Events.setTimeout('GoogleWebhookWatcher',new Date(new Date().getTime() + 5*60*1000));
     });
   }).then(function() {
     console.log("Function complete");
     context.succeed('Done');
   }).catch(function(err) {
     console.log("Other error during execution, rescheduling for 5 minutes");
-    require('./events').setTimeout('GoogleWebhookWatcher',new Date(new Date().getTime() + 5*60*1000)).then(function(){
+    Events.setTimeout('GoogleWebhookWatcher',new Date(new Date().getTime() + 5*60*1000)).then(function(){
       context.succeed("Done");
     }).catch(function(err) {
       console.log("Can't even resubscribe. Something is very wrong");
@@ -376,36 +319,23 @@ re-subscription with
   });
 };
 
-// Subscribe the lambda functions to the appropriate sns topics
-exports.subscribeNotifications = function subscribeNotifications(event,context) {
-  var snish = require('./lib/snish');
-  snish.use_aws = false;
-
-  // TODO - get TopicArn from API config, or
-  // from a config file
-  snish.subscribe({ 'topic': download_topic, 'Protocol': 'https' },exports.downloadFile);
-
-  // Do the download of files every minute
-  setInterval(exports.downloadFiles,60);
-
-  // Subscribe to S3 events from config-derived bucket / prefix
-};
-
 // Permissions: Roles keyDecrypter / updateGrants
 //   - DynamoDb grants table put items
 exports.populateGroupGrants = function populateGroupGrants(event,context) {
   console.log("Lambda syncGappsGroups execution");
   if (! context || context.awsRequestId == 'LAMBDA_INVOKE') {
-    require('./secrets').use_kms = false;
+    require('lambda-helpers').secrets.use_kms = false;
   }
+  const grants = require('./grants');
+
   google.getGroups().then(function(grants) {
-    return require('./grants').putGrants(grants_table,grants).then(function() {
-      return require('./grants').writeGrantConfig(grants.map(function(grant) { return grant.groupid; }),bucket_name);
+    return grants.putGrants(grants_table,grants).then(function() {
+      return grants.writeGrantConfig(grants.map(function(grant) { return grant.groupid; }),bucket_name);
     });
   }).then(function() {
-    return require('./events').setInterval('PopulateGroupGrants','2 hours').then(function(new_rule) {
+    return Events.setInterval('PopulateGroupGrants','2 hours').then(function(new_rule) {
       if (new_rule) {
-        return require('./events').subscribe('PopulateGroupGrants',context.invokedFunctionArn,{});
+        return Events.subscribe('PopulateGroupGrants',context.invokedFunctionArn,{});
       }
     });
   }).catch(function(err) {
