@@ -1,8 +1,9 @@
-var AWS = require('aws-sdk');
-var dynamo = new AWS.DynamoDB({region:'us-east-1'});
-var s3 = new AWS.S3({region:'us-east-1'});
+'use strict';
+/*jshint esversion: 6, node:true */
 
-require('es6-promise').polyfill();
+var AWS = require('lambda-helpers').AWS;
+var dynamo = new AWS.DynamoDB();
+var s3 = new AWS.S3();
 
 var table_promises = {};
 
@@ -70,6 +71,7 @@ var put_grants = function(table,grants) {
 };
 
 var write_grant_config = function(valid_groups,bucket) {
+	console.log("Writing bucket config to ",bucket);
 	var params = {
 		Bucket: bucket,
 		Key: 'conf/groupids',
