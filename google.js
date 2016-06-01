@@ -172,13 +172,16 @@ var check_existing_file_s3 = function(file) {
           resolve(true);
           return;
         }
-
+        if (err.statusCode == 403) {
+          console.log("File doesn't exist");
+          resolve(file);
+          return;
+        }
         if (err.statusCode == 404) {
           console.log("No file, need to upload");
           resolve(file);
           return;
         }
-
         reject(err);
         return;
       }
@@ -190,9 +193,12 @@ var google_get_file_if_needed_s3 = function(auth,file) {
   var drive = google.drive('v3');
   console.log("Getting file from google",file.id," md5 ",file.md5);
   return check_existing_file_s3(file).then(function(exists) {
-    if (exists) {
+    if (exists === true) {
       return true;
     }
+    var AWS = require('lambda-helpers').AWS;
+    var s3 = new AWS.S3();
+
     var params = {
       Bucket: bucket_name,
       Key: 'uploads/google-' +file.id +'/googlegroup-'+ file.groupid
@@ -208,7 +214,15 @@ var google_get_file_if_needed_s3 = function(auth,file) {
     params.Body = stream;
     params.ContentMD5 = new Buffer(file.md5,'hex').toString('base64');
     var options = {partSize: 15 * 1024 * 1024, queueSize: 1};
-    return s3.upload(params, options).promise();
+    return new Promise(function(resolve,reject) {
+      s3.upload(params, options,function(err,data) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(data);
+      });
+    });
   });
 };
 
