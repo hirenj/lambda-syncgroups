@@ -74,7 +74,7 @@
     "LambdaDownloadFilesRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}, {"Ref" : "WriteDownloadTopic"},{"Ref" : "RegisterEvents"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "ConsumeDownloadQueue"}, {"Ref" : "WriteDownloadTopic"},{"Ref" : "RegisterEvents"},{"Ref" : "UpdateDataTableCapacity" }],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -112,7 +112,7 @@
     "LambdaDownloadEverythingRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}, {"Ref" : "RegisterEvents"}, {"Ref" : "ReadValidGroups"}, {"Ref" : "ReadWriteUploads"}],
+        "ManagedPolicyArns" : [ { "Ref" : "DecryptKeys" }, {"Ref" : "WriteDownloadQueue"}, {"Ref" : "RegisterEvents"}, {"Ref" : "ReadValidGroups"}, {"Ref" : "ReadWriteUploads"},{"Ref" : "UpdateDataTableCapacity" }],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -446,6 +446,24 @@
               "Resource": { "Fn::Join" :  [ "", [ "arn:aws:s3:", ":" ,":", { "Ref" : "dataBucket" }, "/conf/groupids" ] ]}
             }
 
+          ]
+        }
+      }
+    },
+    "UpdateDataTableCapacity": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : "Update capacity for writing to data table",
+        "PolicyDocument" : {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                  "dynamodb:UpdateTable"
+              ],
+              "Resource": { "Fn::Join" :  [ "", [ "arn:aws:dynamodb:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId" } ,":table/", { "Ref" : "data" } ] ]}
+            }
           ]
         }
       }

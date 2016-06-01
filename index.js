@@ -11,10 +11,12 @@ var download_queue = 'DownloadQueue';
 var bucket_name = 'gator';
 var downloadEverythingName = 'downloadEverything';
 var downloadFilesName = 'downloadFiles';
+var data_table = 'data';
 
 try {
   var config = require('./resources.conf.json');
   grants_table = config.tables.grants;
+  data_table = config.tables.data;
   download_topic = config.queue.DownloadTopic;
   download_queue = config.queue.DownloadQueue;
   downloadEverythingName = config.functions.downloadEverything;
@@ -41,6 +43,19 @@ var download_changed_files = function(page_token) {
 var update_page_token = function(page_token,arn) {
   console.log("Writing page token ",page_token);
   return ;
+};
+
+var set_download_daemon_capacity = function(increase) {
+  var AWS = require('lambda-helpers').AWS;
+  var dynamo = new AWS.DynamoDB();
+  var params = {
+    TableName: data_table,
+    ProvisionedThroughput: {
+      ReadCapacityUnits: 1,
+      WriteCapacityUnits: increase ? 10 : 1
+    }
+  };
+  return dynamo.updateTable(params).promise();
 };
 
 exports.acceptWebhook = function acceptWebhook(event,context) {
@@ -106,7 +121,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     })).then(function() {
       // Register the downloadFiles daemon if there are files
-      return Events.setInterval('DownloadFilesDaemon','3 minutes').then(function(new_rule) {
+      return set_download_daemon_capacity(true).then(() => Events.setInterval('DownloadFilesDaemon','3 minutes')).then(function(new_rule) {
         if (new_rule) {
           Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
         }
@@ -197,7 +212,9 @@ exports.downloadFiles = function downloadFiles(event,context) {
       console.log("No messages");
       if (event.no_messages >= 5) {
         console.log("Disabling downloadFiles daemon");
-        return Events.setTimeout('DownloadFilesDaemon',new Date(1000));
+        return Events.setTimeout('DownloadFilesDaemon',new Date(1000)).then(function(){
+          return set_download_daemon_capacity(false);
+        });
       } else {
         console.log("Incrementing no messages counter to ",(event.no_messages || 0) + 1);
         return Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn,{'no_messages':(event.no_messages || 0) + 1});
