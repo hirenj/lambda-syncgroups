@@ -468,6 +468,15 @@
         }
       }
     },
+    "LambdaPopulateGroupGrantsPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName" : { "Fn::GetAtt" : ["populateGroupGrants", "Arn"] },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn" : {"Fn::Join": [":", [ "arn:aws:events", { "Ref" : "AWS::Region" } , {"Ref" : "AWS::AccountId" }, "rule/PopulateGroupGrants"]] }
+      }
+    },
     "LambdaDownloadFileInvokePermission": {
       "Type": "AWS::Lambda::Permission",
       "Properties": {
@@ -482,7 +491,8 @@
       "Properties": {
         "FunctionName" : { "Fn::GetAtt" : ["subscribeWebhook", "Arn"] },
         "Action": "lambda:InvokeFunction",
-        "Principal": "events.amazonaws.com"
+        "Principal": "events.amazonaws.com",
+        "SourceArn" : {"Fn::Join": [":", [ "arn:aws:events", { "Ref" : "AWS::Region" } , {"Ref" : "AWS::AccountId" }, "rule/GoogleWebhookWatcher"]] }
       },
       "Metadata" : {
         "Comment" : "Used to maintain a subscription to the webhook. Manages its own events"
@@ -493,7 +503,8 @@
       "Properties": {
         "FunctionName" : { "Fn::GetAtt" : ["downloadEverything", "Arn"] },
         "Action": "lambda:InvokeFunction",
-        "Principal": "events.amazonaws.com"
+        "Principal": "events.amazonaws.com",
+        "SourceArn" : {"Fn::Join": [":", [ "arn:aws:events", { "Ref" : "AWS::Region" } , {"Ref" : "AWS::AccountId" }, "rule/GoogleDownloadFiles"]] }
       },
       "Metadata" : {
         "Comment" : "Invoked some minutes after last acceptWebhook call. acceptWebhook manages events"
@@ -504,7 +515,8 @@
       "Properties": {
         "FunctionName" : { "Fn::GetAtt" : ["downloadFiles", "Arn"] },
         "Action": "lambda:InvokeFunction",
-        "Principal": "events.amazonaws.com"
+        "Principal": "events.amazonaws.com",
+        "SourceArn" : {"Fn::Join": [":", [ "arn:aws:events", { "Ref" : "AWS::Region" } , {"Ref" : "AWS::AccountId" }, "rule/DownloadFilesDaemon"]] }
       },
       "Metadata" : {
         "Comment" : "Invoked at a fixed time rate, controlled by itself and downloadEverything"
