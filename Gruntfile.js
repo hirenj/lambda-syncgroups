@@ -143,7 +143,7 @@ module.exports = function(grunt) {
 
 	grunt.registerTask('encrypt-secrets-local','Encrypt secrets',function() {
 		var done = this.async();
-		var kmish = require('lambda-helpers').kmish;
+		var kmish = require('lambda-helpers').getKmish();
 		var fs = require('fs');
 		kmish.encrypt({ 'PlainText' : fs.readFileSync('creds.json','utf8') },function(err,encrypted) {
 			fs.writeFileSync('creds.kmish.json.encrypted',JSON.stringify( { 'store' : 'kmish', 'CiphertextBlob' : encrypted } ));
