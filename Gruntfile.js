@@ -142,10 +142,12 @@ module.exports = function(grunt) {
 	});
 
 	grunt.registerTask('encrypt-secrets-local','Encrypt secrets',function() {
+		var done = this.async();
 		var kmish = require('lambda-helpers').kmish;
 		var fs = require('fs');
 		kmish.encrypt({ 'PlainText' : fs.readFileSync('creds.json','utf8') },function(err,encrypted) {
 			fs.writeFileSync('creds.kmish.json.encrypted',JSON.stringify( { 'store' : 'kmish', 'CiphertextBlob' : encrypted } ));
+			done();
 		});
 	});
 
@@ -156,6 +158,7 @@ module.exports = function(grunt) {
 		var fs = require('fs');
 		secrets.use_kms = false;
 		secrets.getSecret().then(function(secret) {
+			require('lambda-helpers').AWS.setRegion(config.region);
 			var KMS = require('lambda-helpers').AWS.KMS;
 			var kms = new KMS();
 			kms.encrypt({ 'Plaintext' : secret , 'KeyId' : keyId },function(err,encrypted) {

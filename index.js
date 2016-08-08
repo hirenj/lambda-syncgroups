@@ -335,6 +335,7 @@ re-subscription with
     context.succeed('Done');
   }).catch(function(err) {
     console.log("Other error during execution, rescheduling for 5 minutes");
+    console.log(err,err.stack);
     Events.setTimeout('GoogleWebhookWatcher',new Date(new Date().getTime() + 5*60*1000)).then(function(){
       context.succeed("Done");
     }).catch(function(err) {
