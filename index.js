@@ -53,19 +53,6 @@ var update_page_token = function(page_token,arn) {
   return ;
 };
 
-var set_download_daemon_capacity = function(increase) {
-  var AWS = require('lambda-helpers').AWS;
-  var dynamo = new AWS.DynamoDB();
-  var params = {
-    TableName: data_table,
-    ProvisionedThroughput: {
-      ReadCapacityUnits: 1,
-      WriteCapacityUnits: increase ? 10 : 1
-    }
-  };
-  return dynamo.updateTable(params).promise();
-};
-
 exports.acceptWebhook = function acceptWebhook(event,context) {
   var exp_date = new Date(new Date().getTime() + 2*60*1000);
   // We want to use the setTimeout technique here to coalesce
@@ -129,10 +116,8 @@ exports.downloadEverything = function downloadEverything(event,context) {
       return queue.sendMessage({'id' : file.id, 'group' : file.group, 'name' : file.name, 'md5' : file.md5Checksum });
     })).then(function() {
       // Register the downloadFiles daemon if there are files
-      return set_download_daemon_capacity(true).then(() => Events.setInterval('DownloadFilesDaemon','3 minutes')).then(function(new_rule) {
-        if (new_rule) {
-          Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
-        }
+      return Promise.resolve(true).then(() => Events.setInterval('DownloadFilesDaemon','3 minutes')).then(function(new_rule) {
+        Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
       });
       return true;
     });
@@ -220,9 +205,7 @@ exports.downloadFiles = function downloadFiles(event,context) {
       console.log("No messages");
       if (event.no_messages >= 5) {
         console.log("Disabling downloadFiles daemon");
-        return Events.setTimeout('DownloadFilesDaemon',new Date(1000)).then(function(){
-          return set_download_daemon_capacity(false);
-        });
+        return Events.setTimeout('DownloadFilesDaemon',new Date(1000));
       } else {
         console.log("Incrementing no messages counter to ",(event.no_messages || 0) + 1);
         return Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn,{'no_messages':(event.no_messages || 0) + 1});
