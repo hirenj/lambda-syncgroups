@@ -32,6 +32,7 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'index.populateGroupGrants',
 				},
+				region: config.region,
 				function: config.functions['populateGroupGrants'] || 'populateGroupGrants',
 				arn: null,
 			},
@@ -41,6 +42,7 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'index.downloadFile',
 				},
+				region: config.region,
 				function: config.functions['downloadFile'] || 'downloadFile',
 				arn: null,
 			},
@@ -50,6 +52,7 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'index.downloadFiles',
 				},
+				region: config.region,
 				function: config.functions['downloadFiles'] || 'downloadFiles',
 				arn: null,
 			},
@@ -59,6 +62,7 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'index.downloadEverything',
 				},
+				region: config.region,
 				function: config.functions['downloadEverything'] || 'downloadEverything',
 				arn: null,
 			},
@@ -68,6 +72,7 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'index.subscribeWebhook',
 				},
+				region: config.region,
 				function: config.functions['subscribeWebhook'] || 'subscribeWebhook',
 				arn: null,
 			},
@@ -77,6 +82,7 @@ module.exports = function(grunt) {
 					file_name: 'index.js',
 					handler: 'index.acceptWebhook',
 				},
+				region: config.region,
 				function: config.functions['acceptWebhook'] || 'acceptWebhook',
 				arn: null,
 			},
@@ -145,7 +151,7 @@ module.exports = function(grunt) {
 
 	grunt.registerTask('reencrypt-secrets-aws','Re-encrypt secrets for AWS',function() {
 		var done = this.async();
-		var keyId = 'alias/default';
+		var keyId = config.keys.authSecrets;
 		var secrets = require('lambda-helpers').secrets;
 		var fs = require('fs');
 		secrets.use_kms = false;
@@ -176,7 +182,7 @@ module.exports = function(grunt) {
 	grunt.registerTask('encrypt-secrets-aws','Encrypt secrets',function(keyId) {
 		var AWS = require('lambda-helpers').AWS;
 		var kms = new AWS.KMS();
-		var keyId = 'alias/default';
+		var keyId = config.keys.authSecrets;
 		var fs = require('fs');
 		kms.encrypt({ 'Plaintext' : fs.readFileSync('creds.json','utf8'), 'KeyId' : keyId },function(err,encrypted) {
 			if (err) {
@@ -185,6 +191,8 @@ module.exports = function(grunt) {
 			fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'CiphertextBlob' : encrypted } ));
 		});
 	});
+
+	grunt.registerTask('bootstrap' : ['authorise', 'encrypt-secrets-aws'])
 	grunt.registerTask('deploy:populateGroupGrants', ['env:prod', 'lambda_package:populateGroupGrants', 'lambda_deploy:populateGroupGrants']);
 	grunt.registerTask('deploy:downloadFile', ['env:prod', 'lambda_package:downloadFile', 'lambda_deploy:downloadFile']);
 	grunt.registerTask('deploy:downloadFiles', ['env:prod', 'lambda_package:downloadFiles', 'lambda_deploy:downloadFiles']);

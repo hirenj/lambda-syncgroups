@@ -13,8 +13,10 @@ var downloadEverythingName = 'downloadEverything';
 var downloadFilesName = 'downloadFiles';
 var data_table = 'data';
 
+let config = {};
+
 try {
-  var config = require('./resources.conf.json');
+  config = require('./resources.conf.json');
   grants_table = config.tables.grants;
   data_table = config.tables.data;
   download_topic = config.queue.DownloadTopic;
@@ -23,6 +25,10 @@ try {
   downloadFilesName = config.functions.downloadFiles;
   bucket_name = config.buckets.dataBucket;
 } catch (e) {
+}
+
+if (config.region) {
+  require('lambda-helpers').AWS.setRegion(config.region);
 }
 
 var check_accepted_groups = function(filedata) {
