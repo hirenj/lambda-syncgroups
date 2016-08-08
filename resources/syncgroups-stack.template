@@ -179,7 +179,7 @@
         "Description" : "populateGroupGrants",
         "Handler" : "index.populateGroupGrants",
         "Role" : {"Fn::GetAtt" : ["LambdaPopulateGroupGrantsRole", "Arn"] },
-        "Runtime" : "nodejs",
+        "Runtime" : "nodejs4.3",
         "MemorySize" : 128,
         "Timeout" : 20
       },
@@ -198,7 +198,7 @@
         "Description" : "downloadFile",
         "Handler" : "index.downloadFile",
         "Role" : {"Fn::GetAtt" : ["LambdaDownloadFileRole", "Arn"] },
-        "Runtime" : "nodejs",
+        "Runtime" : "nodejs4.3",
         "MemorySize" : 128,
         "Timeout" : 20
       },
@@ -217,7 +217,7 @@
         "Description" : "downloadFiles",
         "Handler" : "index.downloadFiles",
         "Role" : {"Fn::GetAtt" : ["LambdaDownloadFilesRole", "Arn"] },
-        "Runtime" : "nodejs",
+        "Runtime" : "nodejs4.3",
         "MemorySize" : 128,
         "Timeout" : 20
       },
@@ -236,7 +236,7 @@
         "Description" : "downloadEverything",
         "Handler" : "index.downloadEverything",
         "Role" : {"Fn::GetAtt" : ["LambdaDownloadEverythingRole", "Arn"] },
-        "Runtime" : "nodejs",
+        "Runtime" : "nodejs4.3",
         "MemorySize" : 128,
         "Timeout" : 20
       },
@@ -255,7 +255,7 @@
         "Description" : "subscribeWebhook",
         "Handler" : "index.subscribeWebhook",
         "Role" : {"Fn::GetAtt" : ["LambdaSubscribeWebhookRole", "Arn"] },
-        "Runtime" : "nodejs",
+        "Runtime" : "nodejs4.3",
         "MemorySize" : 128,
         "Timeout" : 20
       },
@@ -274,7 +274,7 @@
         "Description" : "acceptWebhook",
         "Handler" : "index.acceptWebhook",
         "Role" : {"Fn::GetAtt" : ["LambdaAcceptWebhookRole", "Arn"] },
-        "Runtime" : "nodejs",
+        "Runtime" : "nodejs4.3",
         "MemorySize" : 128,
         "Timeout" : 20
       },
