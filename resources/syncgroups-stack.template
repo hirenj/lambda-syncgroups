@@ -305,7 +305,7 @@
                               {"Ref" : "LambdaDownloadFileRole"},
                               {"Ref" : "LambdaDownloadFilesRole"},
                               {"Ref" : "LambdaDownloadEverythingRole"},
-                              {"Ref" : "LambdaSubscribeWebhookRole"},
+                              {"Ref" : "LambdaSubscribeWebhookRole"}
                           ] },
             "Action": [
               "kms:Encrypt",
@@ -324,7 +324,7 @@
                               {"Ref" : "LambdaDownloadFileRole"},
                               {"Ref" : "LambdaDownloadFilesRole"},
                               {"Ref" : "LambdaDownloadEverythingRole"},
-                              {"Ref" : "LambdaSubscribeWebhookRole"},
+                              {"Ref" : "LambdaSubscribeWebhookRole"}
                           ] },
             "Action": [
               "kms:CreateGrant",
