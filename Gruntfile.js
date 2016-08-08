@@ -31,8 +31,8 @@ module.exports = function(grunt) {
 				options: {
 					file_name: 'index.js',
 					handler: 'index.populateGroupGrants',
+					region: config.region,
 				},
-				region: config.region,
 				function: config.functions['populateGroupGrants'] || 'populateGroupGrants',
 				arn: null,
 			},
@@ -41,8 +41,8 @@ module.exports = function(grunt) {
 				options: {
 					file_name: 'index.js',
 					handler: 'index.downloadFile',
+					region: config.region,
 				},
-				region: config.region,
 				function: config.functions['downloadFile'] || 'downloadFile',
 				arn: null,
 			},
@@ -51,8 +51,8 @@ module.exports = function(grunt) {
 				options: {
 					file_name: 'index.js',
 					handler: 'index.downloadFiles',
+					region: config.region,
 				},
-				region: config.region,
 				function: config.functions['downloadFiles'] || 'downloadFiles',
 				arn: null,
 			},
@@ -61,8 +61,8 @@ module.exports = function(grunt) {
 				options: {
 					file_name: 'index.js',
 					handler: 'index.downloadEverything',
+					region: config.region,
 				},
-				region: config.region,
 				function: config.functions['downloadEverything'] || 'downloadEverything',
 				arn: null,
 			},
@@ -71,8 +71,8 @@ module.exports = function(grunt) {
 				options: {
 					file_name: 'index.js',
 					handler: 'index.subscribeWebhook',
+					region: config.region,
 				},
-				region: config.region,
 				function: config.functions['subscribeWebhook'] || 'subscribeWebhook',
 				arn: null,
 			},
@@ -81,8 +81,8 @@ module.exports = function(grunt) {
 				options: {
 					file_name: 'index.js',
 					handler: 'index.acceptWebhook',
+					region: config.region,
 				},
-				region: config.region,
 				function: config.functions['acceptWebhook'] || 'acceptWebhook',
 				arn: null,
 			},
