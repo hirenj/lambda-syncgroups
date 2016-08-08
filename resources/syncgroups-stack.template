@@ -291,7 +291,7 @@
           {
             "Sid": "Allow administration of the key",
             "Effect": "Allow",
-            "Principal": { "Fn::Join" :  [ "", [ "arn:aws:iam:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId" } ,":root" ] ]},
+            "Principal": {"AWS" : { "Fn::Join" :  [ "", [ "arn:aws:iam:",":", { "Ref" : "AWS::AccountId" } ,":root" ] ]} },
             "Action": [
               "kms:*"
             ],
@@ -301,11 +301,11 @@
             "Sid": "Allow use of the key",
             "Effect": "Allow",
             "Principal": { "AWS": [
-                              {"Ref" : "LambdaPopulateGroupGrantsRole"},
-                              {"Ref" : "LambdaDownloadFileRole"},
-                              {"Ref" : "LambdaDownloadFilesRole"},
-                              {"Ref" : "LambdaDownloadEverythingRole"},
-                              {"Ref" : "LambdaSubscribeWebhookRole"}
+                              {"Fn::GetAtt" : [ "LambdaPopulateGroupGrantsRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaDownloadFileRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaDownloadFilesRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaDownloadEverythingRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaSubscribeWebhookRole","Arn" ]}
                           ] },
             "Action": [
               "kms:Encrypt",
@@ -320,11 +320,11 @@
             "Sid": "Allow attachment of persistent resources",
             "Effect": "Allow",
             "Principal": { "AWS": [
-                              {"Ref" : "LambdaPopulateGroupGrantsRole"},
-                              {"Ref" : "LambdaDownloadFileRole"},
-                              {"Ref" : "LambdaDownloadFilesRole"},
-                              {"Ref" : "LambdaDownloadEverythingRole"},
-                              {"Ref" : "LambdaSubscribeWebhookRole"}
+                              {"Fn::GetAtt" : [ "LambdaPopulateGroupGrantsRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaDownloadFileRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaDownloadFilesRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaDownloadEverythingRole" , "Arn" ]},
+                              {"Fn::GetAtt" : [ "LambdaSubscribeWebhookRole","Arn" ]}
                           ] },
             "Action": [
               "kms:CreateGrant",
