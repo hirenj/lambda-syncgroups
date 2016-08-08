@@ -117,7 +117,7 @@ exports.downloadEverything = function downloadEverything(event,context) {
     })).then(function() {
       // Register the downloadFiles daemon if there are files
       return Promise.resolve(true).then(() => Events.setInterval('DownloadFilesDaemon','3 minutes')).then(function(new_rule) {
-        Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
+        return Events.subscribe('DownloadFilesDaemon',context.invokedFunctionArn.replace(/function:.*/,'function:')+downloadFilesName,{'no_messages' : 0});
       });
       return true;
     });
