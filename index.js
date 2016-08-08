@@ -31,6 +31,8 @@ if (config.region) {
   require('lambda-helpers').AWS.setRegion(config.region);
 }
 
+google.setRootBucket(bucket_name);
+
 var check_accepted_groups = function(filedata) {
   return require('./grants').readGrantConfig(bucket_name).then(function(groups) {
     console.log("Valid groups are ",groups.join(','));
