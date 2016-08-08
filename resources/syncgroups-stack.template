@@ -283,7 +283,7 @@
     "authSecrets" : {
       "Type" : "AWS::KMS::Key",
       "Properties" : {
-        "Description" : {"Fn:Join" : [ "", "Secrets key for ", {"Ref" : "AWS::StackName"} ] },
+        "Description" : {"Fn::Join" : [ "", "Secrets key for ", {"Ref" : "AWS::StackName"} ] },
         "KeyPolicy" : {
           "Version": "2012-10-17",
           "Id": "key-default-1",
