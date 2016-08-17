@@ -1,10 +1,6 @@
 'use strict';
 /*jshint esversion: 6, node:true */
 
-var Queue = require('lambda-helpers').queue;
-var google = require('./google');
-const Events = require('lambda-helpers').events;
-
 var grants_table = 'grants';
 var download_topic = 'download';
 var download_queue = 'DownloadQueue';
@@ -30,6 +26,10 @@ try {
 if (config.region) {
   require('lambda-helpers').AWS.setRegion(config.region);
 }
+
+var Queue = require('lambda-helpers').queue;
+var google = require('./google');
+const Events = require('lambda-helpers').events;
 
 google.setRootBucket(bucket_name);
 
