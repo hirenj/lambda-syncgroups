@@ -14,11 +14,17 @@ var make_items = function(groupdata) {
 	item.Name = {S:grouptype+"-"+groupid};
 	item.valid_to = {N:'9007199254740991'};
 	item.valid_from = {N:'0'};
-	item.users = {SS:groupdata.members.map(function(user) { return user.email; })};
-	item.superusers = {SS:groupdata.members.filter(function(user) { return user.role == 'superuser'; }).map(function(user) { return user.email })};
+	item.users = {SS:groupdata.members.filter(user => user.email ).map( user => user.email )};
+	item.superusers = {SS:groupdata.members.filter(user => user.email ).filter(user => user.role == 'superuser').map( user => user.email )};
 	item.grantee = {S:'system'};
 	item.proteins = {S:'*'};
 	item.datasets = {S:grouptype+"-"+groupid+'/*'};
+	if (item.users.SS.length == 0) {
+		item.users.SS = ['none'];
+	}
+	if (item.superusers.SS.length == 0) {
+		item.superusers.SS = ['none'];
+	}
 	return {'PutRequest' : { 'Item': item } };
 };
 
