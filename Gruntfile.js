@@ -183,15 +183,18 @@ module.exports = function(grunt) {
 	});
 
 	grunt.registerTask('encrypt-secrets-aws','Encrypt secrets',function(keyId) {
+		var done = this.async();
 		var AWS = require('lambda-helpers').AWS;
 		var kms = new AWS.KMS();
 		var keyId = config.keys.authSecrets;
 		var fs = require('fs');
 		kms.encrypt({ 'Plaintext' : fs.readFileSync('creds.json','utf8'), 'KeyId' : keyId },function(err,encrypted) {
 			if (err) {
+				console.log(err);
 				throw err;
 			}
-			fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'CiphertextBlob' : encrypted } ));
+			fs.writeFileSync('creds.kms.json.encrypted',JSON.stringify( { 'store' : 'kms', 'KeyId' : encrypted.KeyId, 'CiphertextBlob' : encrypted.CiphertextBlob.toString('base64') } ));
+			done();
 		});
 	});
 
