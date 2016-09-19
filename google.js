@@ -455,9 +455,11 @@ var apps_script = function(auth,scriptId,method) {
   return new Promise(function(resolve,reject) {
     service.scripts.run({"scriptId" : scriptId, auth: auth, resource: request},function(err,result) {
       if (err || result.error) {
+        console.log("Error running apps script");
         reject(err || result.error);
+      } else {
+        resolve(result.response.result);
       }
-      resolve(result.response.result);
     });
   });
 };
@@ -483,7 +485,7 @@ var getOtherGroups = function getOtherGroups() {
   return require('lambda-helpers').secrets.getSecret(bucket_name).then(function(secret) {
     return get_service_auth(secret,[]);
   }).then(function(auth) {
-    return apps_script(auth,'MAgSTtG0xXRHQLMfFQVaOiYmdacAnBeYG','getgroups');
+    return apps_script(auth, 'McKsPEnwKTKAwdmqE91WuEY5UXu0-_fb4','getgroups');
   });
 }
 exports.setRootBucket = function(bucket) {
