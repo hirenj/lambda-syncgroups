@@ -238,7 +238,7 @@
         "Role" : {"Fn::GetAtt" : ["LambdaDownloadEverythingRole", "Arn"] },
         "Runtime" : "nodejs4.3",
         "MemorySize" : 128,
-        "Timeout" : 20
+        "Timeout" : 300
       },
       "DependsOn" : "LambdaDownloadEverythingRole"
     },

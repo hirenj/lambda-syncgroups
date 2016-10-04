@@ -285,27 +285,37 @@ var remove_missing_groups = function(fileid,groups) {
 
 var google_populate_file_group = function(auth,files) {
   var service = google.drive('v3');
-  var promises = files.map(function(fileId) {
-    return new Promise(function(resolve,reject) {
-      service.files.get({'auth' : auth, 'fileId': fileId,'fields':'id,permissions,md5Checksum,name'},function(err,result) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        var groups = result.permissions.filter(function(perm) { return perm.type === 'group'; }).map(function(perm) {
-          return perm.emailAddress;
-        });
-        remove_missing_groups("google-"+fileId,groups).then(function() {
-          resolve(groups.map(function(groupid) {
-            return { 'id' : result.id, 'name' : result.name, 'md5Checksum' : result.md5Checksum, 'group' : groupid };
-          }));
-        }).catch(function(err) {
-          reject(err);
+  var promises = [];
+  var final_promise = files.reduce(function(promise,fileId) {
+    var make_promise = function() {
+      var result = new Promise(function(resolve,reject) {
+        service.files.get({'auth' : auth, 'fileId': fileId,'fields':'id,permissions,md5Checksum,name'},function(err,result) {
+          if (err) {
+            reject(err);
+            return;
+          }
+          var groups = result.permissions.filter(function(perm) { return perm.type === 'group'; }).map(function(perm) {
+            return perm.emailAddress;
+          });
+          remove_missing_groups("google-"+fileId,groups).then(function() {
+            resolve(groups.map(function(groupid) {
+              return { 'id' : result.id, 'name' : result.name, 'md5Checksum' : result.md5Checksum, 'group' : groupid };
+            }));
+          }).catch(function(err) {
+            reject(err);
+          });
         });
       });
-    });
-  });
-  return Promise.all(promises).then(function(file_details) {
+      promises.push(result);
+      return result;
+    };
+    if (promise) {
+      return promise.then( make_promise );
+    } else {
+      return make_promise();
+    }
+  },null);
+  return final_promise.then( () => Promise.all(promises) ).then(function(file_details) {
     return [].concat.apply([], file_details);
   });
 };
@@ -351,7 +361,7 @@ var getChangedFiles = function getChangedFiles(page_token) {
   var scopes = ["https://www.googleapis.com/auth/drive.readonly"];
   return getServiceAuth(scopes).then(function(auth) {
     return google_get_changed_files(auth,page_token).then(function(files) {
-      return google_populate_file_group(auth,files.files).then(function(fileinfo) {
+      return google_populate_file_group(auth,[].concat(files.files)).then(function(fileinfo) {
         return {files: fileinfo, token: files.token };
       });
     });
