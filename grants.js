@@ -14,7 +14,7 @@ var make_items = function(groupdata) {
 	item.Name = {S:grouptype+"-"+groupid};
 	item.valid_to = {N:'9007199254740991'};
 	item.valid_from = {N:'0'};
-	item.users = {SS:groupdata.members.filter(user => user.email ).map( user => user.email )};
+	item.users = {SS:groupdata.members.filter(user => user.email ).map( user => user.email.toLowerCase() )};
 	item.superusers = {SS:groupdata.members.filter(user => user.email ).filter(user => user.role == 'superuser').map( user => user.email )};
 	item.grantee = {S:'system'};
 	item.proteins = {S:'*'};
