@@ -184,6 +184,8 @@ var check_existing_file_s3 = function(file) {
         }
         reject(err);
         return;
+      } else {
+        resolve(file);
       }
     });
   });
